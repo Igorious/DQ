@@ -2,11 +2,85 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DQ"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="350" Width="525">
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        Title="MainWindow"
+        Width="525"
+        Height="350"
+        mc:Ignorable="d">
     <Grid>
-        
+        <DockPanel LastChildFill="True">
+            <TreeView x:Name="TreeView" HorizontalAlignment="Stretch" DockPanel.Dock="Left" Width="150">
+                <TreeView.ItemTemplate>
+                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                        <TextBlock Text="{Binding Header}" TextTrimming="CharacterEllipsis" />
+                    </HierarchicalDataTemplate>
+                </TreeView.ItemTemplate>
+            </TreeView>
+
+            <DataGrid x:Name="DataGrid"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch"
+                      AutoGenerateColumns="False"
+                      CanUserResizeColumns="True"
+                      CanUserResizeRows="False"
+                      GridLinesVisibility="Vertical"
+                      ItemsSource="{Binding Content}"
+                      SizeChanged="DataGrid_OnSizeChanged">
+                <DataGrid.Columns>
+                    <DataGridTextColumn MinWidth="50"
+                                        Binding="{Binding Index}"
+                                        Header="№" />
+                    <DataGridTemplateColumn Width="5*"
+                                            MinWidth="500"
+                                            Header="Черновик">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate DataType="{x:Type local:ParagraphViewModel}">
+                                <local:RichTextBoxEx HorizontalAlignment="Stretch"
+                                                     BorderThickness="0"
+                                                     DocumentBinding="{Binding Document}"
+                                                     IsReadOnly="True" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Width="*"
+                                            MinWidth="100"
+                                            Header="Элементы">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate DataType="{x:Type local:ParagraphViewModel}">
+                                <local:RichTextBoxEx HorizontalAlignment="Stretch"
+                                                     BorderThickness="0"
+                                                     DocumentBinding="{Binding Notes}"
+                                                     IsReadOnly="True">
+                                    <RichTextBox.Resources>
+                                        <Style TargetType="{x:Type Paragraph}">
+                                            <Setter Property="Margin" Value="0" />
+                                        </Style>
+                                    </RichTextBox.Resources>
+                                </local:RichTextBoxEx>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Width="*"
+                                            MinWidth="100"
+                                            Header="Замечания">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate DataType="{x:Type local:ParagraphViewModel}">
+                                <local:RichTextBoxEx HorizontalAlignment="Stretch"
+                                                     BorderThickness="0"
+                                                     DocumentBinding="{Binding Notes}"
+                                                     IsReadOnly="True">
+                                    <RichTextBox.Resources>
+                                        <Style TargetType="{x:Type Paragraph}">
+                                            <Setter Property="Margin" Value="0" />
+                                        </Style>
+                                    </RichTextBox.Resources>
+                                </local:RichTextBoxEx>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
     </Grid>
 </Window>
