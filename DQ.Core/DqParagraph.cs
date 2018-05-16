@@ -1,28 +1,69 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using JetBrains.Annotations;
 
 namespace DQ.Core
 {
-    public class DqReference
+    public abstract class DqStructureElement { }
+
+    public sealed class DqSource : DqNumberedElement
     {
+        public DqSource(DqParagraph paragraph, DqStructureElementType type) : base(paragraph, type) { }
+
+        public SourceType SourceType { get; set; } 
+        public string Formatted { get; set; }
+    }
+
+    [DebuggerDisplay("[{Type.ToString(),nq}] [{Number,nq}] {Paragraph.Text,nq}")]
+    public class DqNumberedElement : DqStructureElement
+    {
+        public DqNumberedElement(DqParagraph paragraph, DqStructureElementType type)
+        {
+            Paragraph = paragraph;
+            Type = type;
+        }
+
+        public DqParagraph Paragraph { get; }
+        public DqStructureElementType Type { get; }
+
         [CanBeNull]
         public string Number { get; set; }
 
         public bool IsMissing { get; set; }
     }
 
+    public enum DqStructureElementType
+    {
+        FigureReference,
+        FigureDeclaration,
+        Figure,
+
+        TableReference,
+        TableDeclaration,
+        Table,
+
+        SourceReference,
+        SourceDeclaration,
+    }
+
     public class DqParagraphMeta
     {
-        public List<DqReference> FigureReferences { get; } = new List<DqReference>();
-        public List<DqReference> FigureDeclarations { get; } = new List<DqReference>();
+        public IEnumerable<DqNumberedElement> FigureReferences => Structure.OfType<DqNumberedElement>().Where(s => s.Type == DqStructureElementType.FigureReference);
+        public IEnumerable<DqNumberedElement> FigureDeclarations => Structure.OfType<DqNumberedElement>().Where(s => s.Type == DqStructureElementType.FigureDeclaration);
 
-        public List<DqReference> TableReferences { get; } = new List<DqReference>();
-        public List<DqReference> TableDeclarations { get; } = new List<DqReference>();
+        public IEnumerable<DqNumberedElement> TableReferences => Structure.OfType<DqNumberedElement>().Where(s => s.Type == DqStructureElementType.TableReference);
+        public IEnumerable<DqNumberedElement> TableDeclarations => Structure.OfType<DqNumberedElement>().Where(s => s.Type == DqStructureElementType.TableDeclaration);
 
-        public List<DqReference> SourceReferences { get; } = new List<DqReference>();
+        public IEnumerable<DqNumberedElement> SourceReferences => Structure.OfType<DqNumberedElement>().Where(s => s.Type == DqStructureElementType.SourceReference);
+        public IEnumerable<DqNumberedElement> SourceDeclarations => Structure.OfType<DqNumberedElement>().Where(s => s.Type == DqStructureElementType.SourceDeclaration);
+
 
         public bool IsHeader { get; set; }
+
+        public Node Node { get; set; }
+
+        public List<DqStructureElement> Structure { get; } = new List<DqStructureElement>();
 
         public List<DqError> Errors { get; } = new List<DqError>();
     }
@@ -37,7 +78,8 @@ namespace DQ.Core
         }
 
         public int Index { get; set; }
-        public string Text { get; }
+        public string Text { get; set; }
+        public string Number { get; set; }
         public DqStyle Style { get; }
         public DqParagraphMeta Meta { get; } = new DqParagraphMeta();
     }

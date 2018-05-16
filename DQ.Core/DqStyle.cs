@@ -51,7 +51,7 @@ namespace DQ.Core
         public Aligment? Aligment { get; set; }
 
         [CanBeNull]
-        public DqNumbering Numbering { get; }
+        public DqNumbering Numbering { get; set; }
 
         public decimal GetFontSize() => FontSize ?? BaseStyle.GetFontSize();
         public string GetFontName() => FontName ?? BaseStyle.GetFontName();

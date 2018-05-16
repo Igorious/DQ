@@ -1,95 +1,104 @@
-﻿using System;
-using System.Linq;
-using System.Text.RegularExpressions;
+﻿using System.Linq;
 
 namespace DQ.Core
 {
     public sealed class DqReferenceParser
     {
-        public void ParseReferences(DqDocument document)
+        public void ParseReferences(DqDocument document, Node root)
         {
+            var figureReferenceParser = new DqFigureReferenceParser();
+            var tableReferenceParser = new DqTableReferenceParser();
+            var sourceReferenceParser = new DqSourceReferenceParser();
+
             foreach (var paragraph in document.Paragraphs)
             {
-                ParseFigureReferences(paragraph);
-                ParseTableReferences(paragraph);
-                ParseSourceReferences(paragraph);
+                figureReferenceParser.Parse(paragraph);
+                tableReferenceParser.Parse(paragraph);
+                sourceReferenceParser.Parse(paragraph, root);
             }
 
-            var allFigureDeclarations = document.Paragraphs.SelectMany(p => p.Meta.FigureDeclarations).ToList();
-            var allFigureReferences = document.Paragraphs.SelectMany(p => p.Meta.FigureReferences).ToList();
+            var structure = document.Paragraphs.SelectMany(p => p.Meta.Structure).OfType<DqNumberedElement>().ToList();
+
+            var allFigureDeclarations = structure.Where(s => s.Type == DqStructureElementType.FigureDeclaration).ToList();
+            var allFigureReferences = structure.Where(s => s.Type == DqStructureElementType.FigureReference).ToList();
 
             foreach (var figureReference in allFigureReferences)
             {
                 figureReference.IsMissing = allFigureDeclarations.All(fd => fd.Number != figureReference.Number);
             }
 
-            foreach (var figureDeclaration in allFigureDeclarations)
+            for (var i = 1; i < allFigureDeclarations.Count; i++)
             {
-                figureDeclaration.IsMissing = allFigureReferences.All(fr => fr.Number != figureDeclaration.Number);
+                var n1 = DqNumber.TryParse(allFigureDeclarations[i - 1].Number);
+                var n2 = DqNumber.TryParse(allFigureDeclarations[i].Number);
+                if (n1 != null && n2 != null && n1.CompareTo(n2) >= 0)
+                {
+                    allFigureDeclarations[i].Paragraph.Meta.Errors.Add(
+                        new DqError($"Неправильный порядок нумерации ({allFigureDeclarations[i].Number} после {allFigureDeclarations[i - 1].Number})"));
+                }
             }
 
-            var allTableDeclarations = document.Paragraphs.SelectMany(p => p.Meta.TableDeclarations).ToList();
-            var allTableReferences = document.Paragraphs.SelectMany(p => p.Meta.TableReferences).ToList();
+            foreach (var figureDeclaration in allFigureDeclarations)
+            {
+                var firstReference = allFigureReferences.FirstOrDefault(r => r.Number == figureDeclaration.Number);
+                if (firstReference == null)
+                {
+                    figureDeclaration.IsMissing = true;
+                }
+                else if (firstReference.Paragraph.Index >= figureDeclaration.Paragraph.Index)
+                {
+                    firstReference.Paragraph.Meta.Errors.Add(new DqError("Первая ссылка должна быть до рисунка."));
+                }
+            }
+
+            var allTableDeclarations = structure.Where(s => s.Type == DqStructureElementType.TableDeclaration).ToList();
+            var allTableReferences = structure.Where(s => s.Type == DqStructureElementType.TableReference).ToList();
 
             foreach (var tableReference in allTableReferences)
             {
                 tableReference.IsMissing = allTableDeclarations.All(fd => fd.Number != tableReference.Number);
             }
 
+            for (var i = 1; i < allTableDeclarations.Count; i++)
+            {
+                var n1 = DqNumber.TryParse(allTableDeclarations[i - 1].Number);
+                var n2 = DqNumber.TryParse(allTableDeclarations[i].Number);
+                if (n1 != null && n2 != null && n1.CompareTo(n2) >= 0)
+                {
+                    allTableDeclarations[i].Paragraph.Meta.Errors.Add(
+                        new DqError($"Неправильный порядок нумерации ({allTableDeclarations[i].Number} после {allTableDeclarations[i - 1].Number})"));
+                }
+            }
+
             foreach (var tableDeclaration in allTableDeclarations)
             {
-                tableDeclaration.IsMissing = allTableReferences.All(fr => fr.Number != tableDeclaration.Number);
+                var firstReference = allTableReferences.FirstOrDefault(r => r.Number == tableDeclaration.Number);
+                if (firstReference == null)
+                {
+                    tableDeclaration.IsMissing = true;
+                }
+                else if (firstReference.Paragraph.Index >= tableDeclaration.Paragraph.Index)
+                {
+                    firstReference.Paragraph.Meta.Errors.Add(new DqError("Первая ссылка должна быть до таблицы."));
+                }
             }
-        }
 
-        public void ParseFigureReferences(DqParagraph paragraph)
-        {
-            var m = Regex.Matches(paragraph.Text, @"(?:рис(?:\.|унок|унк[аеу]|унком)|мал(?:\.|юнак|юнк[аеу]|юнкам))\s+(\d+(\.\d+)*)", RegexOptions.IgnoreCase);
-            if (m.Count == 0) return;
+            var allSourceDeclarations = structure.Where(s => s.Type == DqStructureElementType.SourceDeclaration).ToList();
+            var allSourceReferences = structure.Where(s => s.Type == DqStructureElementType.SourceReference).ToList();
 
-            var trimmedText = paragraph.Text.TrimStart();
-            if (m.Count == 1
-                && (m[0].Value.StartsWith("рисунок", StringComparison.InvariantCultureIgnoreCase) 
-                || m[0].Value.StartsWith("малюнак", StringComparison.InvariantCultureIgnoreCase))
-                && trimmedText.StartsWith(m[0].Value))
+            foreach (var sourceReference in allSourceReferences)
             {
-                paragraph.Meta.FigureDeclarations.Add(new DqReference { Number = m[0].Groups[1].Value });
+                sourceReference.IsMissing = allSourceDeclarations.All(fd => fd.Number != sourceReference.Number);
             }
-            else
+
+            foreach (var sourceDeclaration in allSourceDeclarations)
             {
-                paragraph.Meta.FigureReferences.Add(new DqReference { Number =  m[0].Groups[1].Value });
+                var firstReference = allSourceReferences.FirstOrDefault(r => r.Number == sourceDeclaration.Number);
+                if (firstReference == null)
+                {
+                    sourceDeclaration.IsMissing = true;
+                }
             }
-
-            paragraph.Meta.FigureReferences.AddRange(m.Cast<Match>().Skip(1).Select(mm => mm.Groups[1].Value).Select(t => new DqReference { Number = t }));
-        }
-
-        public void ParseTableReferences(DqParagraph paragraph)
-        {
-            var m = Regex.Matches(paragraph.Text, @"(?:табл(?:\.|иц[аые]|ице[ею]|іц[аы]|іца[йю]))\s+(\d+(\.\d+)*)", RegexOptions.IgnoreCase);
-            if (m.Count == 0) return;
-
-            var trimmedText = paragraph.Text.TrimStart();
-            if (m.Count == 1
-                && (m[0].Value.StartsWith("таблица", StringComparison.InvariantCultureIgnoreCase) 
-                    || m[0].Value.StartsWith("табліца", StringComparison.InvariantCultureIgnoreCase))
-                && trimmedText.StartsWith(m[0].Value))
-            {
-                paragraph.Meta.TableDeclarations.Add(new DqReference { Number = m[0].Groups[1].Value });
-            }
-            else
-            {
-                paragraph.Meta.TableReferences.Add(new DqReference { Number =  m[0].Groups[1].Value });
-            }
-
-            paragraph.Meta.TableReferences.AddRange(m.Cast<Match>().Skip(1).Select(mm => mm.Groups[1].Value).Select(t => new DqReference { Number = t }));
-        }
-
-        public void ParseSourceReferences(DqParagraph paragraph)
-        {
-            var m = Regex.Matches(paragraph.Text, @"[^]]\[(\d+)\]", RegexOptions.IgnoreCase);
-            if (m.Count == 0) return;
-
-            paragraph.Meta.SourceReferences.AddRange(m.Cast<Match>().Select(mm => mm.Groups[1].Value).Select(t => new DqReference { Number = t }));
         }
     }
 }

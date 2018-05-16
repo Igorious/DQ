@@ -1,49 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Media.TextFormatting;
 using DQ.Core;
+using Microsoft.Win32;
 
 namespace DQ
 {
-    public class TreeViewEx : TreeView
-    {
-        protected override DependencyObject GetContainerForItemOverride() => new TreeViewItemEx();
-
-        protected override bool IsItemItsOwnContainerOverride(object item) => item is TreeViewItemEx;
-    }
-
-    public class TreeViewItemEx : TreeViewItem
-    {
-        public TreeViewItemEx()
-        {
-            Loaded += OnLoaded;
-        }
-
-        private void OnLoaded(object sender, RoutedEventArgs routedEventArgs)
-        {
-            if (this.VisualChildrenCount > 0)
-            {
-                Grid grid = GetVisualChild(0) as Grid;
-                if (grid != null && grid.ColumnDefinitions.Count == 3)
-                {
-                    grid.ColumnDefinitions.RemoveAt(1);
-                }               
-            }
-        }
-
-        protected override DependencyObject GetContainerForItemOverride() => new TreeViewItemEx();
-
-        protected override bool IsItemItsOwnContainerOverride(object item) => item is TreeViewItemEx;
-    }
-
     public class RichTextBoxEx : RichTextBox
     {
         public static readonly DependencyProperty DocumentBindingProperty = DependencyProperty.Register(
@@ -58,7 +29,7 @@ namespace DQ
         private static void OnDocumentChanged
             (DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            var thisControl = (RichTextBoxEx) d;
+            var thisControl = (RichTextBoxEx)d;
             thisControl.OnDocumentChanged();
         }
 
@@ -66,9 +37,10 @@ namespace DQ
         {
             if (DocumentBinding?.Parent != null)
             {
-                var parent = (RichTextBoxEx) DocumentBinding.Parent;
+                var parent = (RichTextBoxEx)DocumentBinding.Parent;
                 parent.Document = new FlowDocument();
             }
+
             Document = DocumentBinding ?? new FlowDocument();
         }
     }
@@ -83,6 +55,7 @@ namespace DQ
 
     public class NodeViewModel
     {
+        public int Index { get; set; }
         public string Header { get; set; }
         public List<NodeViewModel> Children { get; set; } = new List<NodeViewModel>();
     }
@@ -91,24 +64,21 @@ namespace DQ
     {
         public static BitmapImage Image { get; private set; }
         public static BitmapImage Table { get; private set; }
+        private static DqDocument _dqDocument;
 
         public MainWindow()
         {
-            Image = new BitmapImage(new Uri(@"D:\Placeholder.png"));
-            Table = new BitmapImage(new Uri(@"D:\Table.png"));
+            Image = new BitmapImage(new Uri(@"pack://application:,,,/DQ;component/Resources/Placeholder.png"));
+            Table = new BitmapImage(new Uri(@"pack://application:,,,/DQ;component/Resources/Table.png"));
             Image.Freeze();
             Table.Freeze();
             InitializeComponent();
-            var (root, document) = new Class1().Go();
-
-            var vms = ToVm(root).Children;
-            TreeView.ItemsSource = vms;
-            DataGrid.ItemsSource = document.Paragraphs.Select(ToVm).ToList();
         }
 
         private static NodeViewModel ToVm(Node node) =>
             new NodeViewModel
             {
+                Index = node.HeaderParagraph.Index,
                 Header = node.HeaderParagraph.Text,
                 Children = node.Children.Select(ToVm).ToList(),
             };
@@ -117,7 +87,7 @@ namespace DQ
         {
             return new ParagraphViewModel
             {
-                Index = p.Index,
+                Index = p.Index + 1,
                 Document = new FlowDocument(Convert(p)),
                 Elements = ToMetaStructure(p),
                 Notes = ToMetaErrors(p),
@@ -130,11 +100,11 @@ namespace DQ
             var textParts = r.Split(p.Text);
 
             var lengthConverter = new LengthConverter();
-            var value = (double) lengthConverter.ConvertFromInvariantString(p.Style.GetIndent().ToString(CultureInfo.InvariantCulture) + "cm");
+            var value = (double)lengthConverter.ConvertFromInvariantString(p.Style.GetIndent().ToString(CultureInfo.InvariantCulture) + "cm");
             var result = new Paragraph
             {
                 TextIndent = value,
-                TextAlignment = (TextAlignment) p.Style.GetAligment(),
+                TextAlignment = (TextAlignment)p.Style.GetAligment(),
             };
 
 
@@ -142,9 +112,9 @@ namespace DQ
             {
                 switch (textPart)
                 {
-                        case "{IMG}":
-                            result.Inlines.Add(new Image { Source = Image, Width = Image.Width, Height = Image.Height });
-                            break;
+                    case "{IMG}":
+                        result.Inlines.Add(new Image { Source = Image, Width = Image.Width, Height = Image.Height });
+                        break;
 
                     case "{TBL}":
                         result.Inlines.Add(new Image { Source = Table, Width = Image.Width, Height = Image.Height });
@@ -153,7 +123,7 @@ namespace DQ
                     default:
                         result.Inlines.Add(ToTextRun(p, textPart));
                         break;
-                }              
+                }
             }
 
             return result;
@@ -164,8 +134,68 @@ namespace DQ
             var errorsDoc = new FlowDocument();
 
             foreach (var metaError in p.Meta.Errors)
-            {              
+            {
                 errorsDoc.Blocks.Add(new Paragraph(new Run(metaError.Message)
+                {
+                    Foreground = Brushes.Red,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontWeight = FontWeights.Bold,
+                }));
+            }
+
+            foreach (var figureDeclaration in p.Meta.FigureDeclarations.Where(d => d.IsMissing))
+            {
+                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет ссылки на рисунок {figureDeclaration.Number}")
+                {
+                    Foreground = Brushes.Red,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontWeight = FontWeights.Bold,
+                }));
+            }
+
+            foreach (var figureReference in p.Meta.FigureReferences.Where(d => d.IsMissing))
+            {
+                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет объявления рисунка {figureReference.Number}")
+                {
+                    Foreground = Brushes.Red,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontWeight = FontWeights.Bold,
+                }));
+            }
+
+            foreach (var tableDeclaration in p.Meta.TableDeclarations.Where(d => d.IsMissing))
+            {
+                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет ссылки на таблицу {tableDeclaration.Number}")
+                {
+                    Foreground = Brushes.Red,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontWeight = FontWeights.Bold,
+                }));
+            }
+
+            foreach (var tableReference in p.Meta.TableReferences.Where(d => d.IsMissing))
+            {
+                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет объявления таблицы {tableReference.Number}")
+                {
+                    Foreground = Brushes.Red,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontWeight = FontWeights.Bold,
+                }));
+            }
+
+            foreach (var sourceDeclaration in p.Meta.SourceDeclarations.Where(d => d.IsMissing))
+            {
+                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет ссылки на источник {sourceDeclaration.Number}")
+                {
+                    Foreground = Brushes.Red,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontWeight = FontWeights.Bold,
+                }));
+            }
+
+            foreach (var sourceReference in p.Meta.SourceReferences.Where(d => d.IsMissing))
+            {
+                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет объявления источника {sourceReference.Number}")
                 {
                     Foreground = Brushes.Red,
                     FontFamily = new FontFamily("Consolas"),
@@ -178,13 +208,22 @@ namespace DQ
 
         private static FlowDocument ToMetaStructure(DqParagraph p)
         {
-            var structureDoc = new FlowDocument();         
+            var structureDoc = new FlowDocument();
+
+            if (p.Meta.IsHeader)
+            {
+                structureDoc.Blocks.Add(new Paragraph(new Run($"Заголовок")
+                {
+                    FontFamily = new FontFamily("Consolas"),
+                    FontWeight = FontWeights.Bold,
+                }));
+            }
 
             foreach (var figureDeclaration in p.Meta.FigureDeclarations)
-            {   
-                structureDoc.Blocks.Add(new Paragraph(new Run($"Figure Declaration: {figureDeclaration.Number} ")
+            {
+                structureDoc.Blocks.Add(new Paragraph(new Run($"Подпись рисунка {figureDeclaration.Number} ")
                 {
-                    Foreground = figureDeclaration.IsMissing ? Brushes.Red : Brushes.DarkOliveGreen,
+                    Foreground = Brushes.DarkOliveGreen,
                     FontFamily = new FontFamily("Consolas"),
                     FontWeight = FontWeights.Bold,
                 }));
@@ -192,9 +231,9 @@ namespace DQ
 
             foreach (var figureReference in p.Meta.FigureReferences)
             {
-                structureDoc.Blocks.Add(new Paragraph(new Run($"Figure Reference: {figureReference.Number} ")
+                structureDoc.Blocks.Add(new Paragraph(new Run($"Ссылка на рисунок {figureReference.Number} ")
                 {
-                    Foreground = figureReference.IsMissing ? Brushes.Red : Brushes.GreenYellow,
+                    Foreground = Brushes.ForestGreen,
                     FontFamily = new FontFamily("Consolas"),
                     FontWeight = FontWeights.Bold,
                 }));
@@ -202,9 +241,9 @@ namespace DQ
 
             foreach (var tableDeclaration in p.Meta.TableDeclarations)
             {
-                structureDoc.Blocks.Add(new Paragraph(new Run($"Table Declaration: {tableDeclaration.Number} ")
+                structureDoc.Blocks.Add(new Paragraph(new Run($"Название таблицы {tableDeclaration.Number} ")
                 {
-                    Foreground = tableDeclaration.IsMissing ? Brushes.Red : Brushes.Blue,
+                    Foreground = Brushes.Blue,
                     FontFamily = new FontFamily("Consolas"),
                     FontWeight = FontWeights.Bold,
                 }));
@@ -212,9 +251,9 @@ namespace DQ
 
             foreach (var tableReference in p.Meta.TableReferences)
             {
-                structureDoc.Blocks.Add(new Paragraph(new Run($"Table Reference: {tableReference.Number} ")
+                structureDoc.Blocks.Add(new Paragraph(new Run($"Ссылка на таблицу {tableReference.Number} ")
                 {
-                    Foreground = tableReference.IsMissing ? Brushes.Red : Brushes.BlueViolet,
+                    Foreground = Brushes.BlueViolet,
                     FontFamily = new FontFamily("Consolas"),
                     FontWeight = FontWeights.Bold,
                 }));
@@ -222,9 +261,19 @@ namespace DQ
 
             foreach (var sourceReference in p.Meta.SourceReferences)
             {
-                structureDoc.Blocks.Add(new Paragraph(new Run($"Source Reference: {sourceReference.Number} ")
+                structureDoc.Blocks.Add(new Paragraph(new Run($"Ссылка на источник {sourceReference.Number} ")
                 {
-                    Foreground = sourceReference.IsMissing ? Brushes.Red : Brushes.Orange,
+                    Foreground = Brushes.Orange,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontWeight = FontWeights.Bold,
+                }));
+            }
+
+            foreach (var sourceReference in p.Meta.SourceDeclarations)
+            {
+                structureDoc.Blocks.Add(new Paragraph(new Run($"Источник {sourceReference.Number} ")
+                {
+                    Foreground = Brushes.DarkGoldenrod,
                     FontFamily = new FontFamily("Consolas"),
                     FontWeight = FontWeights.Bold,
                 }));
@@ -237,19 +286,77 @@ namespace DQ
         {
             return new Run(text)
             {
-                FontSize = (double) p.Style.GetFontSize(),
+                FontSize = (double)p.Style.GetFontSize(),
                 FontFamily = new FontFamily(p.Style.GetFontName()),
-                FontWeight = p.Style.GetIsBold() ? FontWeights.Bold : FontWeights.Normal,
+                FontWeight = p.Style.GetIsBold()? FontWeights.Bold : FontWeights.Normal,
             };
         }
 
         private void DataGrid_OnSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            var dataGrid = (DataGrid) sender;
+            var dataGrid = (DataGrid)sender;
             dataGrid.Columns[0].Width = new DataGridLength(50);
             dataGrid.Columns[1].Width = new DataGridLength(e.NewSize.Width - 250 - 8);
             dataGrid.Columns[2].Width = new DataGridLength(200);
             dataGrid.UpdateLayout();
+        }
+
+        private void DoGoToPart(object sender, RoutedEventArgs e)
+        {
+            var button = (Button) sender;
+            var dc = (NodeViewModel) button.DataContext;
+            DataGrid.SelectedIndex = dc.Index;
+            DataGrid.ScrollIntoView(DataGrid.SelectedItem, DataGrid.Columns[1]);
+        }
+
+        private void DoLoad(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "Word documents (*.docx)|*.docx",
+            };
+            if (openFileDialog.ShowDialog() == true)
+            {
+                var path = openFileDialog.FileName;
+                var (root, document) = new Class1().Go(path);
+                var vms = ToVm(root).Children;
+                TreeView.ItemsSource = vms;
+                DataGrid.ItemsSource = document.Paragraphs.Select(ToVm).ToList();
+                _dqDocument = document;
+            }
+        }
+
+        private void DoExport(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid.ItemsSource == null) return;
+
+            var dialog = new SaveFileDialog { Filter = "Text files (*.txt)|*.txt" };
+            if (dialog.ShowDialog() != true) return;
+
+            var paragraphsWithErrors = DataGrid.ItemsSource.Cast<ParagraphViewModel>().Where(p => p.Notes.Blocks.Any()).ToList();
+            var buffer = new StringBuilder();
+            foreach (var paragraph in paragraphsWithErrors)
+            {
+                buffer.AppendLine($"{paragraph.Index}: {GetText(paragraph.Document, useTabs: false)}{Environment.NewLine}{GetText(paragraph.Notes, useTabs: true)} ");
+            }
+            File.WriteAllText(dialog.FileName, buffer.ToString());
+        }
+
+        private string GetText(FlowDocument flowDocument, bool useTabs) => 
+            string.Join(Environment.NewLine, flowDocument.Blocks.OfType<Paragraph>().SelectMany(p => p.Inlines).OfType<Run>().Select(i => (useTabs? "\t" : "") + i.Text));
+
+        private void OnDrop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                var path = files[0];
+                var (root, document) = new Class1().Go(path);
+                var vms = ToVm(root).Children;
+                TreeView.ItemsSource = vms;
+                DataGrid.ItemsSource = document.Paragraphs.Select(ToVm).ToList();
+                _dqDocument = document;
+            }
         }
     }
 }

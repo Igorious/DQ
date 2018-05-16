@@ -113,18 +113,27 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BookParser.cs" />
+    <Compile Include="ChapterParser.cs" />
     <Compile Include="Class1.cs" />
-    <Compile Include="CollectionExtensions.cs" />
+    <Compile Include="Person.cs" />
+    <Compile Include="SourceAnalyzer.cs" />
+    <Compile Include="StringExtensions.cs" />
     <Compile Include="DocxParser.cs" />
     <Compile Include="DqDocument.cs" />
+    <Compile Include="DqFigureReferenceParser.cs" />
     <Compile Include="DqFooter.cs" />
     <Compile Include="DqFooters.cs" />
+    <Compile Include="DqNumber.cs" />
     <Compile Include="DqPageMargin.cs" />
     <Compile Include="DqPageSize.cs" />
     <Compile Include="DqParagraph.cs" />
     <Compile Include="DqReferenceParser.cs" />
     <Compile Include="DqSection.cs" />
+    <Compile Include="DqSourceReferenceParser.cs" />
     <Compile Include="DqStyle.cs" />
+    <Compile Include="DqTableReferenceParser.cs" />
+    <Compile Include="NumberingService.cs" />
     <Compile Include="PageAnalyzer.cs" />
     <Compile Include="ParagraphAnalyzer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

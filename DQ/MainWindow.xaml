@@ -4,21 +4,37 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:local="clr-namespace:DQ"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        Title="MainWindow"
+        Title="DQ Alpha"
         Width="525"
         Height="350"
         mc:Ignorable="d">
     <Grid>
         <DockPanel LastChildFill="True">
-            <TreeView x:Name="TreeView" HorizontalAlignment="Stretch" DockPanel.Dock="Left" Width="150">
-                <TreeView.ItemTemplate>
-                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                        <TextBlock Text="{Binding Header}" TextTrimming="CharacterEllipsis" />
-                    </HierarchicalDataTemplate>
-                </TreeView.ItemTemplate>
-            </TreeView>
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
+                <Button Content="Открыть..." Click="DoLoad" />
+                <!--<Button Content="Сохранить замечания..." Click="DoExport" />-->
+            </StackPanel>
+    
+            <Grid AllowDrop="True" Drop="OnDrop">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="20*" />
+                    <ColumnDefinition Width="80*" />
+                </Grid.ColumnDefinitions>
 
-            <DataGrid x:Name="DataGrid"
+                <TreeView Grid.Column="0" x:Name="TreeView" HorizontalAlignment="Stretch">
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                            <Button Background="Transparent" Click="DoGoToPart">
+                                <TextBlock Text="{Binding Header}" TextTrimming="CharacterEllipsis" />
+                            </Button>
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+
+                <GridSplitter Grid.Column="1" Width="2" Panel.ZIndex="1" Background="Transparent" HorizontalAlignment="Left" />
+                
+                
+            <DataGrid Grid.Column="1" x:Name="DataGrid"
                       HorizontalAlignment="Stretch"
                       HorizontalContentAlignment="Stretch"
                       AutoGenerateColumns="False"
@@ -50,7 +66,7 @@
                             <DataTemplate DataType="{x:Type local:ParagraphViewModel}">
                                 <local:RichTextBoxEx HorizontalAlignment="Stretch"
                                                      BorderThickness="0"
-                                                     DocumentBinding="{Binding Notes}"
+                                                     DocumentBinding="{Binding Elements}"
                                                      IsReadOnly="True">
                                     <RichTextBox.Resources>
                                         <Style TargetType="{x:Type Paragraph}">
@@ -81,6 +97,8 @@
                     </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
+            </Grid>
+           
         </DockPanel>
     </Grid>
 </Window>

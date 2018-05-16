@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text.RegularExpressions;
-using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace DQ.Core
 {
@@ -12,11 +9,13 @@ namespace DQ.Core
         public DqNumberingLevel(string text) => Text = text;
 
         public string Text { get; }
+
+        public decimal? Indent { get; set; }
     }
 
     public sealed class DqNumbering
     {
-        public int Id { get; private set; } = -1;
+        public int Id { get; set; } = -1;
         public List<DqNumberingLevel> Levels { get; } = new List<DqNumberingLevel>();
 
         public DqNumbering Clone(int id)
@@ -27,6 +26,7 @@ namespace DQ.Core
         }
     }
 
+    [DebuggerDisplay("{Paragraph.Text,nq}")]
     class Token
     {
         public Token(DqParagraph paragraph, int index, int level)
@@ -41,149 +41,75 @@ namespace DQ.Core
         public int Level { get; }
     }
 
-    [DebuggerDisplay("[Node] {HeaderParagraph.Text,nq}")]
+    [DebuggerDisplay("[Node] {Type} {HeaderParagraph.Text,nq}")]
     public class Node
     {
-        public Node(DqParagraph paragraph) => HeaderParagraph = paragraph;
+        public Node(DqParagraph paragraph, MainPartType? type, int level)
+        {
+            HeaderParagraph = paragraph;
+            Type = type;
+            Level = level;
+            paragraph.Meta.Node = this;
+        }
 
         public DqParagraph HeaderParagraph { get; }
+        public MainPartType? Type { get; }
+        public int Level { get; }
         public List<DqParagraph> ContentParagraphs { get; } = new List<DqParagraph>();
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
         public List<Node> Children { get; } = new List<Node>();
     }
 
-    public sealed class ChapterParser
+    public class MainParts
     {
-        public Node Find(DqDocument document)
+        public static IReadOnlyDictionary<string, MainPartType> TypeByText = new Dictionary<string, MainPartType>
         {
-            var numbered = document.Paragraphs.Select((p, i) => (p, i)).Where(x => IsNumberedParagraph(x.p) || IsMainPart(x.p)).ToList();
+            { "реферат", MainPartType.Abstract },
+            { "рэферат", MainPartType.Abstract },
+            { "abstract", MainPartType.Abstract },
 
-            var list = new List<Token>();
+            { "змест", MainPartType.Toc },
+            { "содержание", MainPartType.Toc },
 
-            var partNames = new List<Token>();
+            { "введение", MainPartType.Intro },
+            { "уводзіны", MainPartType.Intro },
 
-            foreach (var n in numbered)
-            {
-                if (!list.Any())
-                {
-                    list.Add(new Token(n.p, n.i, GetLevel(n.p)));
-                    continue;
-                }
+            { "вынікі", MainPartType.Outro },
+            { "заключение", MainPartType.Outro },
 
-                if (n.i - list.Last().Index == 1)
-                {
-                    list.Add(new Token(n.p, n.i, GetLevel(n.p)));
-                }
-                else
-                {
-                    var isGreater = true;
-                    for (var i = 1; i < list.Count; ++i)
-                    {
-                        if (list[i - 1].Level >= list[i].Level)
-                        {
-                            isGreater = false;
-                        }
-                    }
+            { "спіс выкарыстаных крыніц", MainPartType.Sources },
+            { "список использованных источников", MainPartType.Sources },
+            { "список использованной литературы", MainPartType.Sources },
 
-                    if (isGreater)
-                    {
-                        partNames.AddRange(list);
-                    }
-                    list.Clear();
-                    list.Add(new Token(n.p, n.i, GetLevel(n.p)));
-                }
-            }
-
-            var root = new Node(new DqParagraph("{root}", document.Styles.First(s => s.IsDefault)));
-            var lastLevel = 0;
-
-            var stack = new Stack<Node>();
-            stack.Push(root);
-
-            partNames.ForEach(pn => pn.Paragraph.Meta.IsHeader = true);
-
-            var lastIndex = 0;
-            foreach (var partName in partNames)
-            {
-                var targetNode = stack.Peek().Children.LastOrDefault() ?? stack.Peek();
-                for (int i = lastIndex; i < partName.Paragraph.Index; i++)
-                {
-                    targetNode.ContentParagraphs.Add(document.Paragraphs[i]);
-                }
-                lastIndex = partName.Paragraph.Index;
-
-                if (partName.Level == lastLevel)
-                {
-                    stack.Peek().Children.Add(new Node(partName.Paragraph));
-                }
-                else if (partName.Level > lastLevel)
-                {
-                    var last = stack.Peek().Children.Last();
-                    stack.Push(last);
-                    stack.Peek().Children.Add(new Node(partName.Paragraph));
-                    lastLevel = partName.Level;
-                }
-                else
-                {
-                    var currentLevel = partName.Level;
-                    while (currentLevel < lastLevel)
-                    {
-                        stack.Pop();
-                        lastLevel--;
-                    }
-                    stack.Peek().Children.Add(new Node(partName.Paragraph));
-                }
-            }
-
-            return root;
-        }
-
-        private int GetLevel(DqParagraph paragraph)
-        {
-            if (paragraph.Style.OutlineLevel < 9)
-            {
-                return paragraph.Style.OutlineLevel;
-            }
-
-            var isTop = Regex.IsMatch(paragraph.Text, @"^\s*(Глава|Раздел|Часть)\s*\d+\s*[\D\S]", RegexOptions.IgnoreCase);
-            if (isTop) return 1;
-
-            var numberPart = Regex.Match(paragraph.Text, @"^\s*\d+(\.\d+)*\s*[\D\S]", RegexOptions.IgnoreCase).Value;
-            var m = Regex.Matches(numberPart, @"\b(\d+)\b", RegexOptions.IgnoreCase);
-            return m.Count;
-        }
-
-        private bool IsNumberedParagraph(DqParagraph paragraph) =>
-            paragraph.Style.Numbering != null
-            || Regex.IsMatch(paragraph.Text, @"^\s*(Глава|Раздел|Часть|Падзел)?\s*\d+(\.\d+)*\s*[\D\S]", RegexOptions.IgnoreCase);
-
-        private bool IsMainPart(DqParagraph paragraph)
-        {
-            var text = paragraph.Text.Trim();
-            return new string[]
-            {
-                "реферат", "рэферат", "abstract",
-                "змест", "содержание",
-                "введение", "уводзіны",
-                "вынікі", "заключение",
-                "спіс выкарыстаных крыніц", "список использованых источников"
-            }.Any(c => c.Equals(text, StringComparison.CurrentCultureIgnoreCase));
-        }
+            { "приложения", MainPartType.Annex },
+           // { "приложение a", MainPartType.Annex },
+        };
     }
 
+    public enum MainPartType
+    {
+        Abstract,
+        Toc,
+        Intro,
+        Chapter,
+        Outro,
+        Sources,     	
+        Annex,
+    }
 
     public class Class1
     {
-        public (Node, DqDocument) Go()
+        public (Node, DqDocument) Go(string path)
         {
-            //var path = @"C:\Users\Игорь\Documents\Жураховский И. В. - Визуализация кинетического метода Монте-Карло.docx";
-            var path = @"C:\Users\Игорь\Documents\Уводзіны.work.docx";
             var dqDocument = new DocxParser().Parse(path);
             var result = new PageAnalyzer().Analyze(dqDocument);
+            dqDocument.Paragraphs.Insert(0, new DqParagraph("<Информация о полях документа>", dqDocument.Styles.First(s => s.IsDefault)) { Index = -1 });
+            dqDocument.Paragraphs[0].Meta.Errors.AddRange(result);
             var root = new ChapterParser().Find(dqDocument);
-            new DqReferenceParser().ParseReferences(dqDocument);
-            new ParagraphAnalyzer().Analyze(dqDocument);
+            new DqReferenceParser().ParseReferences(dqDocument, root);
+            new ParagraphAnalyzer().Analyze(dqDocument, root);
+            //new SourceAnalyzer().Analyze(root);
             return (root, dqDocument);
         }
     }
