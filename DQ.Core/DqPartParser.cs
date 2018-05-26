@@ -6,83 +6,97 @@ namespace DQ.Core
 {
     internal sealed class DqPartParser
     {
-        public DqReport PrimaryParse(DqDocument document)
+        private static readonly Dictionary<MainPartType, IReadOnlyList<string>> TitlesByPartType = new Dictionary<MainPartType, IReadOnlyList<string>>
         {
-            var report = new DqReport();
+            { MainPartType.Toc, new[] { "содержание", "змест" } },
+            { MainPartType.Abstract, new[] { "реферат", "рэферат", "abstract" } },
+            { MainPartType.Introduction, new[] { "введение", "ўводзіны" } },
+            { MainPartType.Conclusion, new[] { "заключение", "вынікі" } },
+            { MainPartType.Bibliography, new[] { "список использованных источников", "спіс выкарыстаных крыніц" } },
+            { MainPartType.Annex, new[] { "приложения" } },
+        };
+
+        public DqStructure PrimaryParse(DqDocument document)
+        {
+            var partTypeByTitle = TitlesByPartType
+                .SelectMany(kv => kv.Value.Select(v => (kv.Key, v)))
+                .ToDictionary(kv => kv.v, kv => kv.Key);
+
             var partStart = 0;
 
-            var abstractTitles = new List<string> { "реферат", "рэферат", "abstract" };
-
-            var abstractStart = TryFindByTitle(document, abstractTitles, partStart);
-            if (abstractStart != null)
+            var dqParts = new List<DqPart>();
+            while (true)    
             {
-                report.Title = CopyContent(new DqPart { Type = MainPartType.Title }, document, partStart, abstractStart);
-                partStart = abstractStart.Value;
+                var nextPartStart = TryFindByTitle(document, partTypeByTitle.Keys, partStart);
+                if (nextPartStart == null) break;
+
+                var start = document.Paragraphs[nextPartStart.Value];
+                dqParts.Add(new DqPart
+                {
+                    Type = partTypeByTitle[start.GetPureText().ToLower()],
+                    Start = start,
+                });
+
+                partStart = nextPartStart.Value;
             }
 
-            while (true)
+            for (var i = 0; i < dqParts.Count - 1; ++i)
             {
-                abstractStart = TryFindByTitle(document, abstractTitles, partStart);
-                if (abstractStart == null) break;
-
-                report.Abstracts.Add(CopyContent(new DqPart { Type = MainPartType.Abstract }, document, partStart, abstractStart));
-                partStart = abstractStart.Value;
+                var dqPart = dqParts[i];
+                dqPart.Paragraphs.AddRange(document.Paragraphs.GetRange(dqPart.Start.Index, dqParts[i + 1].Start.Index - dqPart.Start.Index));
             }
 
-            //var tocStart = TryFindByTitle(document, new[] { "содержание", "змест" }, partStart);
-            //if (tocStart != null)
-            //{
-            //    report.Abstracts.Add(CopyContent(new DqPart { Type = MainPartType.Abstract }, document, partStart, tocStart));
-            //    partStart = tocStart.Value;
-            //}
+            var lastPart = dqParts.Last();
+            lastPart.Paragraphs.AddRange(document.Paragraphs.GetRange(lastPart.Start.Index, document.Paragraphs.Count - lastPart.Start.Index));
 
-            var introductionStart = TryFindByTitle(document, new[] { "введение", "ўводзіны" }, partStart);
-            if (introductionStart != null)
-            {
-                report.Abstracts.Add(CopyContent(new DqPart { Type = MainPartType.Abstract }, document, partStart, introductionStart));
-                partStart = introductionStart.Value;
-            }
+            var report = new DqStructure();
+            report.Title = CopyContent(new DqPart { Type = MainPartType.Title }, document, 0, dqParts.First().Start.Index);
 
-            var conclusionStart = TryFindByTitle(document, new[] { "заключение", "вынікі" }, partStart);
-            if (conclusionStart != null)
+            foreach (var dqPart in dqParts)
             {
-                report.MainPart = CopyContent(new DqPart { Type = MainPartType.Chapter }, document, partStart, conclusionStart);
-                partStart = conclusionStart.Value;
-            }
+                switch (dqPart.Type)
+                {
+                    case MainPartType.Abstract:
+                        report.Abstracts.Add(dqPart);
+                        break;
 
-            var bibliographyStart = TryFindByTitle(document, new[] { "список использованных источников", "спіс выкарыстаных крыніц" }, partStart);
-            if (bibliographyStart != null)
-            {
-                report.Conclusion = CopyContent(new DqPart { Type = MainPartType.Conclusion }, document, partStart, bibliographyStart);
-                partStart = bibliographyStart.Value;
-            }
+                    case MainPartType.Toc:
+                        report.Toc = dqPart;
+                        break;
 
-            var annexStart = TryFindByTitle(document, new[] { "приложения" }, partStart);
-            if (annexStart != null)
-            {
-                report.Bibliography = CopyContent(new DqPart { Type = MainPartType.Bibliography }, document, partStart, annexStart);
-                report.Appendixes = CopyContent(new DqPart { Type = MainPartType.Annex }, document, annexStart.Value, document.Paragraphs.Count);
-            }
-            else
-            {
-                report.Bibliography = CopyContent(new DqPart { Type = MainPartType.Bibliography }, document, partStart, document.Paragraphs.Count);
+                    case MainPartType.Introduction:
+                        report.Introduction = dqPart;
+                        break;
+
+                    case MainPartType.Conclusion:
+                        report.Conclusion = dqPart;
+                        break;
+
+                    case MainPartType.Bibliography:
+                        report.Bibliography = dqPart;
+                        break;
+
+                    case MainPartType.Annex:
+                        report.Appendixes = dqPart;
+                        break;
+                }
             }
 
             return report;
-        }
+        }   
 
-        public void SecondaryParse(DqReport dqReport)
+        public void SecondaryParse(DqStructure dqStructure)
         {
-            var firstHeader = dqReport.MainPart.Paragraphs
+            var firstHeader = dqStructure.MainPart.Paragraphs
                 .Select((p, i) => (p, i))
                 .FirstOrDefault(x => x.p.Meta.IsHeader);
             if (firstHeader.p == null) return;
 
-            var introductionRange = dqReport.MainPart.Paragraphs.GetRange(0, firstHeader.i);
-            dqReport.MainPart.Paragraphs.RemoveRange(0, firstHeader.i);
+            var introductionRange = dqStructure.MainPart.Paragraphs.GetRange(0, firstHeader.i);
+            dqStructure.MainPart.Paragraphs.RemoveRange(0, firstHeader.i);
 
-            dqReport.Introduction = new DqPart { Type = MainPartType.Introduction };
-            dqReport.Introduction.Paragraphs.AddRange(introductionRange);
+            dqStructure.Introduction = new DqPart { Type = MainPartType.Introduction };
+            dqStructure.Introduction.Paragraphs.AddRange(introductionRange);
         }
 
         private DqPart CopyContent(DqPart dqPart, DqDocument dqDocument, int partStart, int? partEnd)

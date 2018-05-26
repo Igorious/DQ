@@ -119,7 +119,7 @@
     <Compile Include="DqFontScheme.cs" />
     <Compile Include="DqPart.cs" />
     <Compile Include="DqPartParser.cs" />
-    <Compile Include="DqReport.cs" />
+    <Compile Include="DqStructure.cs" />
     <Compile Include="HeaderParser.cs" />
     <Compile Include="Styling\DqNumberingTable.cs" />
     <Compile Include="Styling\DqStyleParser.cs" />

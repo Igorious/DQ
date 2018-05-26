@@ -8,7 +8,7 @@ namespace DQ.Core
     {      
         public IList<Token> GetHeaders(DqDocument document)
         {
-            var dqParagraphs = document.Report.MainPart.Paragraphs
+            var dqParagraphs = document.Structure.MainPart.Paragraphs
                 .Skip(1)
                 .Where(IsNumberedParagraph)
                 .ToList();
@@ -63,7 +63,7 @@ namespace DQ.Core
 
         private IEnumerable<Token> GetHeadersBeforeMainParts(DqDocument dqDocument)
         {
-            var report = dqDocument.Report;
+            var report = dqDocument.Structure;
             return report.Abstracts.Concat(new[]
                 {
                     report.Toc,
@@ -76,7 +76,7 @@ namespace DQ.Core
 
         private IEnumerable<Token> GetHeadersAfterMainParts(DqDocument dqDocument)
         {
-            var report = dqDocument.Report;
+            var report = dqDocument.Structure;
             return new[]
                 {
                     report.Conclusion,

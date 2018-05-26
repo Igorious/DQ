@@ -83,9 +83,9 @@ namespace DQ.Core
             new NumberingService().RestoreNumbering(dqDocument);
 
             var dqPartParser = new DqPartParser();
-            dqDocument.Report = dqPartParser.PrimaryParse(dqDocument);
+            dqDocument.Structure = dqPartParser.PrimaryParse(dqDocument);
             var headers = new HeaderParser().GetHeaders(dqDocument);
-            dqPartParser.SecondaryParse(dqDocument.Report);
+            dqPartParser.SecondaryParse(dqDocument.Structure);
 
             var root = new HeaderHierarchyService().GetHierarchy(headers, dqDocument);
 

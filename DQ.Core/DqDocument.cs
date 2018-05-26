@@ -10,6 +10,6 @@ namespace DQ.Core
         public DqStyleTable StyleTable { get; set; }
         public DqNumberingTable NumberingTable { get; set; }
 
-        public DqReport Report { get; set; }
+        public DqStructure Structure { get; set; }
     }
 }

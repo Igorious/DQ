@@ -2,7 +2,7 @@
 
 namespace DQ.Core 
 {
-    public sealed class DqReport
+    public sealed class DqStructure
     {
         public DqPart Title { get; set; }
         public List<DqPart> Abstracts { get; } = new List<DqPart>();
