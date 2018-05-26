@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using DQ.Core.Styling;
 
 namespace DQ.Core 
 {
@@ -6,7 +7,9 @@ namespace DQ.Core
     {
         public List<DqSection> Sections { get; } = new List<DqSection>();
         public List<DqParagraph> Paragraphs { get; } = new List<DqParagraph>();
-        public List<DqStyle> Styles { get; } = new List<DqStyle>();
-        public List<DqNumbering> Numbering { get; } = new List<DqNumbering>();
+        public DqStyleTable StyleTable { get; set; }
+        public DqNumberingTable NumberingTable { get; set; }
+
+        public DqReport Report { get; set; }
     }
 }

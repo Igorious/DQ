@@ -21,7 +21,7 @@ namespace DQ.Core
     {
         public void Analyze(Node root)
         {
-            var sourcesPart = root.Children.SingleOrDefault(p => p.Type == MainPartType.Sources);
+            var sourcesPart = root.Children.SingleOrDefault(p => p.Type == MainPartType.Bibliography);
             if (sourcesPart == null) return;
             foreach (var content in sourcesPart.ContentParagraphs)
             {

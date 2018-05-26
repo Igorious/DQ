@@ -4,40 +4,16 @@ using System.Linq;
 
 namespace DQ.Core
 {
-    public sealed class DqNumberingLevel
-    {
-        public DqNumberingLevel(string text) => Text = text;
-
-        public string Text { get; }
-
-        public decimal? Indent { get; set; }
-    }
-
-    public sealed class DqNumbering
-    {
-        public int Id { get; set; } = -1;
-        public List<DqNumberingLevel> Levels { get; } = new List<DqNumberingLevel>();
-
-        public DqNumbering Clone(int id)
-        {
-            var copy = (DqNumbering) MemberwiseClone();
-            copy.Id = id;
-            return copy;
-        }
-    }
-
     [DebuggerDisplay("{Paragraph.Text,nq}")]
     class Token
     {
-        public Token(DqParagraph paragraph, int index, int level)
+        public Token(DqParagraph paragraph, int level)
         {
             Paragraph = paragraph;
-            Index = index;
             Level = level;
         }
 
         public DqParagraph Paragraph { get; }
-        public int Index { get; }
         public int Level { get; }
     }
 
@@ -72,15 +48,15 @@ namespace DQ.Core
             { "змест", MainPartType.Toc },
             { "содержание", MainPartType.Toc },
 
-            { "введение", MainPartType.Intro },
-            { "уводзіны", MainPartType.Intro },
+            { "введение", MainPartType.Introduction },
+            { "уводзіны", MainPartType.Introduction },
 
-            { "вынікі", MainPartType.Outro },
-            { "заключение", MainPartType.Outro },
+            { "вынікі", MainPartType.Conclusion },
+            { "заключение", MainPartType.Conclusion },
 
-            { "спіс выкарыстаных крыніц", MainPartType.Sources },
-            { "список использованных источников", MainPartType.Sources },
-            { "список использованной литературы", MainPartType.Sources },
+            { "спіс выкарыстаных крыніц", MainPartType.Bibliography },
+            { "список использованных источников", MainPartType.Bibliography },
+            { "список использованной литературы", MainPartType.Bibliography },
 
             { "приложения", MainPartType.Annex },
            // { "приложение a", MainPartType.Annex },
@@ -90,11 +66,12 @@ namespace DQ.Core
     public enum MainPartType
     {
         Abstract,
+        Title,
         Toc,
-        Intro,
+        Introduction,
         Chapter,
-        Outro,
-        Sources,     	
+        Conclusion,
+        Bibliography,     	
         Annex,
     }
 
@@ -103,10 +80,19 @@ namespace DQ.Core
         public (Node, DqDocument) Go(string path)
         {
             var dqDocument = new DocxParser().Parse(path);
+            new NumberingService().RestoreNumbering(dqDocument);
+
+            var dqPartParser = new DqPartParser();
+            dqDocument.Report = dqPartParser.PrimaryParse(dqDocument);
+            var headers = new HeaderParser().GetHeaders(dqDocument);
+            dqPartParser.SecondaryParse(dqDocument.Report);
+
+            var root = new HeaderHierarchyService().GetHierarchy(headers, dqDocument);
+
             var result = new PageAnalyzer().Analyze(dqDocument);
-            dqDocument.Paragraphs.Insert(0, new DqParagraph("<Информация о полях документа>", dqDocument.Styles.First(s => s.IsDefault)) { Index = -1 });
+            dqDocument.Paragraphs.Insert(0, new DqParagraph("<Информация о полях документа>", dqDocument.StyleTable.Paragraph.Default) { Index = -1 });
             dqDocument.Paragraphs[0].Meta.Errors.AddRange(result);
-            var root = new ChapterParser().Find(dqDocument);
+           
             new DqReferenceParser().ParseReferences(dqDocument, root);
             new ParagraphAnalyzer().Analyze(dqDocument, root);
             //new SourceAnalyzer().Analyze(root);

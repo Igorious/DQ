@@ -13,7 +13,7 @@ namespace DQ.Core
                 paragraph.Meta.Structure.AddRange(m.Cast<Match>().Select(mm => mm.Groups[1].Value).Select(t => new DqNumberedElement(paragraph, DqStructureElementType.SourceReference) { Number = t }));
             }
 
-            var sourceNode = root.Children.FirstOrDefault(c => c.Type == MainPartType.Sources);
+            var sourceNode = root.Children.FirstOrDefault(c => c.Type == MainPartType.Bibliography);
             if (sourceNode == null || !sourceNode.ContentParagraphs.Contains(paragraph)) return;
 
             if (paragraph.Index > sourceNode.HeaderParagraph.Index)

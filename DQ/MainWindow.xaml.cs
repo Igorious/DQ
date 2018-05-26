@@ -100,11 +100,11 @@ namespace DQ
             var textParts = r.Split(p.Text);
 
             var lengthConverter = new LengthConverter();
-            var value = (double)lengthConverter.ConvertFromInvariantString(p.Style.GetIndent().ToString(CultureInfo.InvariantCulture) + "cm");
+            var value = (double)lengthConverter.ConvertFromInvariantString(p.Style.Indent.ToString(CultureInfo.InvariantCulture) + "cm");
             var result = new Paragraph
             {
                 TextIndent = value,
-                TextAlignment = (TextAlignment)p.Style.GetAligment(),
+                TextAlignment = (TextAlignment)p.Style.Aligment,
             };
 
 
@@ -286,9 +286,9 @@ namespace DQ
         {
             return new Run(text)
             {
-                FontSize = (double)p.Style.GetFontSize(),
-                FontFamily = new FontFamily(p.Style.GetFontName()),
-                FontWeight = p.Style.GetIsBold()? FontWeights.Bold : FontWeights.Normal,
+                FontSize = (double)p.Style.FontSize,
+                FontFamily = new FontFamily(p.Style.FontName),
+                FontWeight = p.Style.IsBold? FontWeights.Bold : FontWeights.Normal,
             };
         }
 

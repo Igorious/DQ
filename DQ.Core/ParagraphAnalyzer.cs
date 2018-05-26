@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using DQ.Core.Styling;
 
 namespace DQ.Core
 {
@@ -17,7 +18,7 @@ namespace DQ.Core
                 return;
             }
 
-            if (paragraph.Meta.Node?.Level == 0 && root.Children.FirstOrDefault(c => c.Type == MainPartType.Sources)?.ContentParagraphs.Skip(1).Contains(paragraph) == false)
+            if (paragraph.Meta.Node?.Level == 0 && root.Children.FirstOrDefault(c => c.Type == MainPartType.Bibliography)?.ContentParagraphs.Skip(1).Contains(paragraph) == false)
             {
                 if (!paragraph.Text.StartsWith("{PageBreak}") && !document.Paragraphs[paragraph.Index].Text.EndsWith("{PageBreak}"))
                 {
@@ -30,77 +31,77 @@ namespace DQ.Core
 
             if (paragraph.Meta.FigureDeclarations.Any())
             {
-                if (paragraph.Style.GetFontSize() > 14)
+                if (paragraph.Style.FontSize > 14)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Неверный размер шрифта ({paragraph.Style.GetFontSize()} пт). Подписи риунков должны использовать шрифт не больше основного (14 пт)."));
+                    paragraph.Meta.Errors.Add(new DqError($"Неверный размер шрифта ({paragraph.Style.FontSize} пт). Подписи риунков должны использовать шрифт не больше основного (14 пт)."));
                 }
             }
             else if (paragraph.Meta.TableDeclarations.Any())
             {
-                if (paragraph.Style.GetFontSize() > 14)
+                if (paragraph.Style.FontSize > 14)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Неверный размер шрифта ({paragraph.Style.GetFontSize()} пт). Заголовки таблиц должны использовать шрифт не больше основного (14 пт)."));
+                    paragraph.Meta.Errors.Add(new DqError($"Неверный размер шрифта ({paragraph.Style.FontSize} пт). Заголовки таблиц должны использовать шрифт не больше основного (14 пт)."));
                 }
             }
             else if (paragraph.Meta.IsHeader)
             {
-                if (paragraph.Style.GetFontSize() < 14)
+                if (paragraph.Style.FontSize < 14)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Неверный размер шрифта ({paragraph.Style.GetFontSize()} пт). Заголовки должны использовать шрифт не меньше основного (14 пт)."));
+                    paragraph.Meta.Errors.Add(new DqError($"Неверный размер шрифта ({paragraph.Style.FontSize} пт). Заголовки должны использовать шрифт не меньше основного (14 пт)."));
                 }
             }
 
             var expectedFontName = "Times New Roman";
-            if (paragraph.Style.GetFontName() != expectedFontName)
+            if (paragraph.Style.FontName != expectedFontName)
             {
-                paragraph.Meta.Errors.Add(new DqError($"Неверный шрифт ({paragraph.Style.GetFontName()}). Иcпользуйте {expectedFontName}."));
+                paragraph.Meta.Errors.Add(new DqError($"Неверный шрифт ({paragraph.Style.FontName}). Иcпользуйте {expectedFontName}."));
             }
 
-            var centeredParts = new MainPartType?[] { MainPartType.Sources, MainPartType.Abstract, MainPartType.Intro, MainPartType.Outro, MainPartType.Toc };
+            var centeredParts = new MainPartType?[] { MainPartType.Bibliography, MainPartType.Abstract, MainPartType.Introduction, MainPartType.Conclusion, MainPartType.Toc };
             if (paragraph.Meta.IsHeader && centeredParts.Contains(paragraph.Meta.Node?.Type))
             {
-                if (paragraph.Style.GetAligment() != Aligment.Center)
+                if (paragraph.Style.Aligment != DqAligment.Center)
                 {
                     paragraph.Meta.Errors.Add(new DqError($"Заголовок раздела должен быть выровнен по центру."));
                 }
-                else if (paragraph.Style.GetIndent() != 0)
+                else if (paragraph.Style.Indent != 0)
                 {
                     paragraph.Meta.Errors.Add(new DqError($"При выравнивании по центру должен отсутвовать абзацный отступ."));
                 }
             }
             else if (paragraph.Meta.FigureDeclarations.Any())
             {
-                if (paragraph.Style.GetAligment() != Aligment.Center)
+                if (paragraph.Style.Aligment != DqAligment.Center)
                 {
                     paragraph.Meta.Errors.Add(new DqError($"Подпись рисунка должна быть выровнена по центру."));
                 }
-                else if (paragraph.Style.GetIndent() != 0)
+                else if (paragraph.Style.Indent != 0)
                 {
                     paragraph.Meta.Errors.Add(new DqError($"При выравнивании по центру должен отсутвовать абзацный отступ."));
                 }
             }
             else if (paragraph.Meta.TableDeclarations.Any())
             {
-                if (paragraph.Style.GetAligment() != Aligment.Left)
+                if (paragraph.Style.Aligment != DqAligment.Left)
                 {
                     paragraph.Meta.Errors.Add(new DqError($"Заголовок таблицы должен быть выровнен по левому краю."));
                 }
-                else if (paragraph.Style.GetIndent() != 0)
+                else if (paragraph.Style.Indent != 0)
                 {
                     paragraph.Meta.Errors.Add(new DqError($"Заголовок таблицы помещают без абзацного отступа."));
                 }
             }
             else if (!paragraph.Meta.IsHeader)
             {   
-                if (paragraph.Style.GetIndent() == 0)
+                if (paragraph.Style.Indent == 0)
                 {
                     paragraph.Meta.Errors.Add(new DqError($"Отсутствует абзацный отступ."));
                 }
             }
 
-            if (paragraph.Style.GetSpacingBetweenLines() != 1.5m && !paragraph.Meta.IsHeader)
+            if (paragraph.Style.SpacingBetweenLines != 1.5m && !paragraph.Meta.IsHeader)
             {
-                paragraph.Meta.Errors.Add(new DqError($"Неверный междустрочный интервал ({paragraph.Style.GetSpacingBetweenLines()}). Ожидается полуторный интервал."));
+                paragraph.Meta.Errors.Add(new DqError($"Неверный междустрочный интервал ({paragraph.Style.SpacingBetweenLines}). Ожидается полуторный интервал."));
             }
         }
     }

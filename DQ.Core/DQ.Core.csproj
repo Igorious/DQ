@@ -114,8 +114,21 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BookParser.cs" />
-    <Compile Include="ChapterParser.cs" />
+    <Compile Include="HeaderHierarchyService.cs" />
     <Compile Include="Class1.cs" />
+    <Compile Include="DqFontScheme.cs" />
+    <Compile Include="DqPart.cs" />
+    <Compile Include="DqPartParser.cs" />
+    <Compile Include="DqReport.cs" />
+    <Compile Include="HeaderParser.cs" />
+    <Compile Include="Styling\DqNumberingTable.cs" />
+    <Compile Include="Styling\DqStyleParser.cs" />
+    <Compile Include="Styling\DqStyleTable.cs" />
+    <Compile Include="Styling\DqNumbering.cs" />
+    <Compile Include="Styling\DqNumberingLevel.cs" />
+    <Compile Include="Styling\DqStyleBasis.cs" />
+    <Compile Include="Styling\DqAligment.cs" />
+    <Compile Include="Styling\DqNumberingParser.cs" />
     <Compile Include="Person.cs" />
     <Compile Include="SourceAnalyzer.cs" />
     <Compile Include="StringExtensions.cs" />
@@ -131,7 +144,7 @@
     <Compile Include="DqReferenceParser.cs" />
     <Compile Include="DqSection.cs" />
     <Compile Include="DqSourceReferenceParser.cs" />
-    <Compile Include="DqStyle.cs" />
+    <Compile Include="Styling\DqStyle.cs" />
     <Compile Include="DqTableReferenceParser.cs" />
     <Compile Include="NumberingService.cs" />
     <Compile Include="PageAnalyzer.cs" />

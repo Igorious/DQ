@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using DQ.Core.Styling;
 using JetBrains.Annotations;
 
 namespace DQ.Core
@@ -82,5 +83,7 @@ namespace DQ.Core
         public string Number { get; set; }
         public DqStyle Style { get; }
         public DqParagraphMeta Meta { get; } = new DqParagraphMeta();
+
+        public string GetPureText() => Text.Replace("{PageBreak}", string.Empty);
     }
 }
