@@ -12,7 +12,6 @@
         <DockPanel LastChildFill="True">
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                 <Button Content="Открыть..." Click="DoLoad" />
-                <!--<Button Content="Сохранить замечания..." Click="DoExport" />-->
             </StackPanel>
     
             <Grid AllowDrop="True" Drop="OnDrop">
@@ -82,16 +81,7 @@
                                             Header="Замечания">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate DataType="{x:Type local:ParagraphViewModel}">
-                                <local:RichTextBoxEx HorizontalAlignment="Stretch"
-                                                     BorderThickness="0"
-                                                     DocumentBinding="{Binding Notes}"
-                                                     IsReadOnly="True">
-                                    <RichTextBox.Resources>
-                                        <Style TargetType="{x:Type Paragraph}">
-                                            <Setter Property="Margin" Value="0" />
-                                        </Style>
-                                    </RichTextBox.Resources>
-                                </local:RichTextBoxEx>
+                                <ContentControl Content="{Binding Notes}" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

@@ -8,13 +8,15 @@ namespace DQ.Core
     {      
         public IList<Token> GetHeaders(DqDocument document)
         {
-            var dqParagraphs = document.Structure.MainPart.Paragraphs
+            if (document.Structure.Introduction == null) return new List<Token>();
+
+            var dqParagraphs = document.Structure.Introduction.Paragraphs
                 .Skip(1)
                 .Where(IsNumberedParagraph)
                 .ToList();
 
             var list = new List<Token>();
-            var partNames = new List<Token>();
+            var mainPartHeaders = new List<Token>();
             foreach (var dqParagraph in dqParagraphs)
             {
                 if (!list.Any())
@@ -40,7 +42,7 @@ namespace DQ.Core
 
                     if (isGreater)
                     {
-                        partNames.AddRange(list);
+                        mainPartHeaders.AddRange(list);
                     }
 
                     list.Clear();
@@ -48,41 +50,32 @@ namespace DQ.Core
                 }
             }
 
-            partNames.InsertRange(0, GetHeadersBeforeMainParts(document));
-            partNames.AddRange(GetHeadersAfterMainParts(document));
+            if (list.Count == 1)
+            {
+                mainPartHeaders.AddRange(list);
+            }
 
-            foreach (var token in partNames)
+            foreach (var token in mainPartHeaders.Concat(GetNonMainHeaders(document)))
             {
                 token.Paragraph.Meta.IsHeader = true;
             }
 
-            return partNames;
+            return mainPartHeaders;
         }
 
         private Token CreateToken(DqParagraph dqParagraph) => new Token(dqParagraph, GetLevel(dqParagraph));
 
-        private IEnumerable<Token> GetHeadersBeforeMainParts(DqDocument dqDocument)
+        private IEnumerable<Token> GetNonMainHeaders(DqDocument dqDocument)
         {
             var report = dqDocument.Structure;
             return report.Abstracts.Concat(new[]
                 {
                     report.Toc,
-                    report.Introduction,
-                })
-                .Select(p => p?.Paragraphs.FirstOrDefault())
-                .Where(p => p != null)
-                .Select(CreateToken);
-        }
-
-        private IEnumerable<Token> GetHeadersAfterMainParts(DqDocument dqDocument)
-        {
-            var report = dqDocument.Structure;
-            return new[]
-                {
+                    report.Introduction,                 
                     report.Conclusion,
                     report.Bibliography,
                     report.Appendixes,
-                }
+                })
                 .Select(p => p?.Paragraphs.FirstOrDefault())
                 .Where(p => p != null)
                 .Select(CreateToken);

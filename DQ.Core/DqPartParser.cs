@@ -6,14 +6,14 @@ namespace DQ.Core
 {
     internal sealed class DqPartParser
     {
-        private static readonly Dictionary<MainPartType, IReadOnlyList<string>> TitlesByPartType = new Dictionary<MainPartType, IReadOnlyList<string>>
+        private static readonly Dictionary<PartType, IReadOnlyList<string>> TitlesByPartType = new Dictionary<PartType, IReadOnlyList<string>>
         {
-            { MainPartType.Toc, new[] { "содержание", "змест" } },
-            { MainPartType.Abstract, new[] { "реферат", "рэферат", "abstract" } },
-            { MainPartType.Introduction, new[] { "введение", "ўводзіны" } },
-            { MainPartType.Conclusion, new[] { "заключение", "вынікі" } },
-            { MainPartType.Bibliography, new[] { "список использованных источников", "спіс выкарыстаных крыніц" } },
-            { MainPartType.Annex, new[] { "приложения" } },
+            { PartType.Toc, new[] { "содержание", "змест" } },
+            { PartType.Abstract, new[] { "реферат", "рэферат", "abstract" } },
+            { PartType.Introduction, new[] { "введение", "ўводзіны" } },
+            { PartType.Conclusion, new[] { "заключение", "вынікі" } },
+            { PartType.Bibliography, new[] { "список использованных источников", "спіс выкарыстаных крыніц", "список использованной литературы" } },
+            { PartType.Annex, new[] { "приложения" } },
         };
 
         public DqStructure PrimaryParse(DqDocument document)
@@ -46,37 +46,49 @@ namespace DQ.Core
                 dqPart.Paragraphs.AddRange(document.Paragraphs.GetRange(dqPart.Start.Index, dqParts[i + 1].Start.Index - dqPart.Start.Index));
             }
 
+            if (!dqParts.Any())
+            {
+                var mainPart = new DqMainPart();
+                mainPart.Paragraphs.AddRange(document.Paragraphs);
+                mainPart.Start = document.Paragraphs.First();
+                return new DqStructure { MainPart = mainPart };              
+            }
+
             var lastPart = dqParts.Last();
             lastPart.Paragraphs.AddRange(document.Paragraphs.GetRange(lastPart.Start.Index, document.Paragraphs.Count - lastPart.Start.Index));
 
             var report = new DqStructure();
-            report.Title = CopyContent(new DqPart { Type = MainPartType.Title }, document, 0, dqParts.First().Start.Index);
+            report.Title = CopyContent(new DqPart
+            {
+                Type = PartType.Title,
+                Start = document.Paragraphs.First()
+            }, document, 0, dqParts.First().Start.Index);
 
             foreach (var dqPart in dqParts)
             {
                 switch (dqPart.Type)
                 {
-                    case MainPartType.Abstract:
+                    case PartType.Abstract:
                         report.Abstracts.Add(dqPart);
                         break;
 
-                    case MainPartType.Toc:
+                    case PartType.Toc:
                         report.Toc = dqPart;
                         break;
 
-                    case MainPartType.Introduction:
+                    case PartType.Introduction:
                         report.Introduction = dqPart;
                         break;
 
-                    case MainPartType.Conclusion:
+                    case PartType.Conclusion:
                         report.Conclusion = dqPart;
                         break;
 
-                    case MainPartType.Bibliography:
+                    case PartType.Bibliography:
                         report.Bibliography = dqPart;
                         break;
 
-                    case MainPartType.Annex:
+                    case PartType.Annex:
                         report.Appendixes = dqPart;
                         break;
                 }
@@ -87,16 +99,20 @@ namespace DQ.Core
 
         public void SecondaryParse(DqStructure dqStructure)
         {
-            var firstHeader = dqStructure.MainPart.Paragraphs
+            if (dqStructure.Introduction == null) return;
+
+            var firstHeader = dqStructure.Introduction.Paragraphs
                 .Select((p, i) => (p, i))
+                .Skip(1)
                 .FirstOrDefault(x => x.p.Meta.IsHeader);
             if (firstHeader.p == null) return;
 
-            var introductionRange = dqStructure.MainPart.Paragraphs.GetRange(0, firstHeader.i);
-            dqStructure.MainPart.Paragraphs.RemoveRange(0, firstHeader.i);
+            var mainPartRange = dqStructure.Introduction.Paragraphs.GetRange(firstHeader.i, dqStructure.Introduction.Paragraphs.Count - firstHeader.i);
+            dqStructure.Introduction.Paragraphs.RemoveRange(firstHeader.i, dqStructure.Introduction.Paragraphs.Count - firstHeader.i);
 
-            dqStructure.Introduction = new DqPart { Type = MainPartType.Introduction };
-            dqStructure.Introduction.Paragraphs.AddRange(introductionRange);
+            dqStructure.MainPart = new DqMainPart();
+            dqStructure.MainPart.Paragraphs.AddRange(mainPartRange);
+            dqStructure.MainPart.Start = mainPartRange.First();
         }
 
         private DqPart CopyContent(DqPart dqPart, DqDocument dqDocument, int partStart, int? partEnd)

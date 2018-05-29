@@ -4,7 +4,7 @@ namespace DQ.Core
 {
     public sealed class DqReferenceParser
     {
-        public void ParseReferences(DqDocument document, Node root)
+        public void ParseReferences(DqDocument document)
         {
             var figureReferenceParser = new DqFigureReferenceParser();
             var tableReferenceParser = new DqTableReferenceParser();
@@ -14,7 +14,7 @@ namespace DQ.Core
             {
                 figureReferenceParser.Parse(paragraph);
                 tableReferenceParser.Parse(paragraph);
-                sourceReferenceParser.Parse(paragraph, root);
+                sourceReferenceParser.Parse(paragraph, document);
             }
 
             var structure = document.Paragraphs.SelectMany(p => p.Meta.Structure).OfType<DqNumberedElement>().ToList();

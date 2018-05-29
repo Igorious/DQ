@@ -50,7 +50,7 @@ namespace DQ
         public int Index { get; set; }
         public FlowDocument Document { get; set; }
         public FlowDocument Elements { get; set; }
-        public FlowDocument Notes { get; set; }
+        public WrapPanel Notes { get; set; }
     }
 
     public class NodeViewModel
@@ -64,7 +64,6 @@ namespace DQ
     {
         public static BitmapImage Image { get; private set; }
         public static BitmapImage Table { get; private set; }
-        private static DqDocument _dqDocument;
 
         public MainWindow()
         {
@@ -75,12 +74,14 @@ namespace DQ
             InitializeComponent();
         }
 
-        private static NodeViewModel ToVm(Node node) =>
+        private static NodeViewModel ToVm(DqPart node) =>
             new NodeViewModel
             {
-                Index = node.HeaderParagraph.Index,
-                Header = node.HeaderParagraph.Text,
-                Children = node.Children.Select(ToVm).ToList(),
+                Index = node.Start.Index,
+                Header = node.Start.GetPureText(),
+                Children = node is DqMainPart dqMainPart
+                    ? dqMainPart.Children.Select(ToVm).ToList()
+                    : new List<NodeViewModel>(),
             };
 
         private static ParagraphViewModel ToVm(DqParagraph p)
@@ -129,78 +130,87 @@ namespace DQ
             return result;
         }
 
-        private static FlowDocument ToMetaErrors(DqParagraph p)
+        private static WrapPanel ToMetaErrors(DqParagraph p)
         {
-            var errorsDoc = new FlowDocument();
+            var errorsDoc = new WrapPanel();
 
             foreach (var metaError in p.Meta.Errors)
             {
-                errorsDoc.Blocks.Add(new Paragraph(new Run(metaError.Message)
+                var grid = new Grid();
+
+                grid.Children.Add(new Image
                 {
-                    Foreground = Brushes.Red,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontWeight = FontWeights.Bold,
-                }));
+                    ToolTip = metaError.Message,
+                    Source = new BitmapImage(new Uri($@"pack://application:,,,/DQ;component/Resources/{metaError.AssociatedImage}.png")),
+                    Width = 32,
+                });    
+                
+                if (metaError.GetType() != typeof(DqError) && metaError.GetType() != typeof(DqWarning))
+                {
+                    grid.Background = Brushes.IndianRed;
+                }
+
+                errorsDoc.Children.Add(grid);
             }
 
             foreach (var figureDeclaration in p.Meta.FigureDeclarations.Where(d => d.IsMissing))
             {
-                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет ссылки на рисунок {figureDeclaration.Number}")
+                errorsDoc.Children.Add(new Image
                 {
-                    Foreground = Brushes.Red,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontWeight = FontWeights.Bold,
-                }));
+                    ToolTip = $"Нет ссылки на рисунок {figureDeclaration.Number}",
+                    Source = new BitmapImage(new Uri(@"pack://application:,,,/DQ;component/Resources/Wrong.png")),
+                    Width = 32,
+                });   
             }
 
             foreach (var figureReference in p.Meta.FigureReferences.Where(d => d.IsMissing))
             {
-                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет объявления рисунка {figureReference.Number}")
+                errorsDoc.Children.Add(new Image
                 {
-                    Foreground = Brushes.Red,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontWeight = FontWeights.Bold,
-                }));
+                    ToolTip = $"Нет объявления рисунка {figureReference.Number}",
+                    Source = new BitmapImage(new Uri(@"pack://application:,,,/DQ;component/Resources/Wrong.png")),
+                    Width = 32,
+                });
             }
 
             foreach (var tableDeclaration in p.Meta.TableDeclarations.Where(d => d.IsMissing))
             {
-                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет ссылки на таблицу {tableDeclaration.Number}")
+                errorsDoc.Children.Add(new Image
                 {
-                    Foreground = Brushes.Red,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontWeight = FontWeights.Bold,
-                }));
+                    ToolTip = $"Нет ссылки на таблицу {tableDeclaration.Number}",
+                    Source = new BitmapImage(new Uri(@"pack://application:,,,/DQ;component/Resources/Wrong.png")),
+                    Width = 32,
+                });
             }
 
             foreach (var tableReference in p.Meta.TableReferences.Where(d => d.IsMissing))
             {
-                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет объявления таблицы {tableReference.Number}")
+                errorsDoc.Children.Add(new Image
                 {
-                    Foreground = Brushes.Red,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontWeight = FontWeights.Bold,
-                }));
+                    ToolTip = $"Нет объявления таблицы {tableReference.Number}",
+                    Source = new BitmapImage(new Uri(@"pack://application:,,,/DQ;component/Resources/Wrong.png")),
+                    Width = 32,
+                });
             }
 
             foreach (var sourceDeclaration in p.Meta.SourceDeclarations.Where(d => d.IsMissing))
             {
-                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет ссылки на источник {sourceDeclaration.Number}")
+                errorsDoc.Children.Add(new Image
                 {
-                    Foreground = Brushes.Red,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontWeight = FontWeights.Bold,
-                }));
+                    ToolTip = $"Нет ссылки на источник {sourceDeclaration.Number}",
+                    Source = new BitmapImage(new Uri(@"pack://application:,,,/DQ;component/Resources/Wrong.png")),
+                    Width = 32,
+                });
             }
 
             foreach (var sourceReference in p.Meta.SourceReferences.Where(d => d.IsMissing))
             {
-                errorsDoc.Blocks.Add(new Paragraph(new Run($"Нет объявления источника {sourceReference.Number}")
+                errorsDoc.Children.Add(new Image
                 {
-                    Foreground = Brushes.Red,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontWeight = FontWeights.Bold,
-                }));
+                    ToolTip = $"Нет объявления источника {sourceReference.Number}",
+                    Source = new BitmapImage(new Uri(@"pack://application:,,,/DQ;component/Resources/Wrong.png")),
+                    Width = 32,
+                });
             }
 
             return errorsDoc;
@@ -305,7 +315,7 @@ namespace DQ
         {
             var button = (Button) sender;
             var dc = (NodeViewModel) button.DataContext;
-            DataGrid.SelectedIndex = dc.Index;
+            DataGrid.SelectedIndex = dc.Index + 1;
             DataGrid.ScrollIntoView(DataGrid.SelectedItem, DataGrid.Columns[1]);
         }
 
@@ -317,45 +327,90 @@ namespace DQ
             };
             if (openFileDialog.ShowDialog() == true)
             {
-                var path = openFileDialog.FileName;
-                var (root, document) = new Class1().Go(path);
-                var vms = ToVm(root).Children;
-                TreeView.ItemsSource = vms;
-                DataGrid.ItemsSource = document.Paragraphs.Select(ToVm).ToList();
-                _dqDocument = document;
+                Load(openFileDialog.FileName);
             }
         }
 
-        private void DoExport(object sender, RoutedEventArgs e)
+        private void Load(string path)
         {
-            if (DataGrid.ItemsSource == null) return;
+            var document = new Class1().Go(path);
 
-            var dialog = new SaveFileDialog { Filter = "Text files (*.txt)|*.txt" };
-            if (dialog.ShowDialog() != true) return;
-
-            var paragraphsWithErrors = DataGrid.ItemsSource.Cast<ParagraphViewModel>().Where(p => p.Notes.Blocks.Any()).ToList();
-            var buffer = new StringBuilder();
-            foreach (var paragraph in paragraphsWithErrors)
-            {
-                buffer.AppendLine($"{paragraph.Index}: {GetText(paragraph.Document, useTabs: false)}{Environment.NewLine}{GetText(paragraph.Notes, useTabs: true)} ");
-            }
-            File.WriteAllText(dialog.FileName, buffer.ToString());
+            TreeView.ItemsSource = GetStructure(document);
+            DataGrid.ItemsSource = document.Paragraphs.Select(ToVm).ToList();
         }
 
-        private string GetText(FlowDocument flowDocument, bool useTabs) => 
-            string.Join(Environment.NewLine, flowDocument.Blocks.OfType<Paragraph>().SelectMany(p => p.Inlines).OfType<Run>().Select(i => (useTabs? "\t" : "") + i.Text));
+        private IEnumerable<NodeViewModel> GetStructure(DqDocument dqDocument)
+        {
+            if (dqDocument.Structure.Abstracts.Any())
+            {
+                foreach (var @abstract in dqDocument.Structure.Abstracts)
+                {
+                    yield return ToVm(@abstract);
+                }
+            }
+            else
+            {
+                yield return CreateMissingNode("реферат");
+            }
+
+            if (dqDocument.Structure.Toc != null)
+            {
+                yield return ToVm(dqDocument.Structure.Toc);
+            }
+
+            if (dqDocument.Structure.Introduction != null)
+            {
+                yield return ToVm(dqDocument.Structure.Introduction);
+            }
+            else
+            {
+                yield return CreateMissingNode("введение");
+            }
+
+            if (dqDocument.Structure.MainPart != null)
+            {
+                foreach (var dqMainPart in dqDocument.Structure.MainPart.Children)
+                {
+                    yield return ToVm(dqMainPart);
+                }
+            }
+
+            if (dqDocument.Structure.Conclusion != null)
+            {
+                yield return ToVm(dqDocument.Structure.Conclusion);
+            }
+            else
+            {
+                yield return CreateMissingNode("заключение");
+            }
+
+            if (dqDocument.Structure.Bibliography != null)
+            {
+                yield return ToVm(dqDocument.Structure.Bibliography);
+            }
+            else
+            {
+                yield return CreateMissingNode("список литературы");
+            }
+
+            if (dqDocument.Structure.Appendixes != null)
+            {
+                yield return ToVm(dqDocument.Structure.Appendixes);
+            }
+
+            NodeViewModel CreateMissingNode(string title) => new NodeViewModel
+            {
+                Index = 0,
+                Header = $"[{title.ToUpper()} ОТСУТСТВУЕТ]",
+            };
+        }
 
         private void OnDrop(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                var path = files[0];
-                var (root, document) = new Class1().Go(path);
-                var vms = ToVm(root).Children;
-                TreeView.ItemsSource = vms;
-                DataGrid.ItemsSource = document.Paragraphs.Select(ToVm).ToList();
-                _dqDocument = document;
+                Load(files[0]);
             }
         }
     }

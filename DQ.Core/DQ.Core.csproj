@@ -9,8 +9,9 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DQ.Core</RootNamespace>
     <AssemblyName>DQ.Core</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -33,6 +34,46 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="BookParser.cs" />
+    <Compile Include="HeaderHierarchyService.cs" />
+    <Compile Include="Class1.cs" />
+    <Compile Include="DqFontScheme.cs" />
+    <Compile Include="DqPart.cs" />
+    <Compile Include="DqPartParser.cs" />
+    <Compile Include="DqStructure.cs" />
+    <Compile Include="HeaderParser.cs" />
+    <Compile Include="Properties\Settings.Designer.cs" />
+    <Compile Include="Styling\DqNumberingTable.cs" />
+    <Compile Include="Styling\DqStyleParser.cs" />
+    <Compile Include="Styling\DqStyleTable.cs" />
+    <Compile Include="Styling\DqNumbering.cs" />
+    <Compile Include="Styling\DqNumberingLevel.cs" />
+    <Compile Include="Styling\DqStyleBasis.cs" />
+    <Compile Include="Styling\DqAligment.cs" />
+    <Compile Include="Styling\DqNumberingParser.cs" />
+    <Compile Include="Person.cs" />
+    <Compile Include="SourceAnalyzer.cs" />
+    <Compile Include="StringExtensions.cs" />
+    <Compile Include="DocxParser.cs" />
+    <Compile Include="DqDocument.cs" />
+    <Compile Include="DqFigureReferenceParser.cs" />
+    <Compile Include="DqFooter.cs" />
+    <Compile Include="DqFooters.cs" />
+    <Compile Include="DqNumber.cs" />
+    <Compile Include="DqPageMargin.cs" />
+    <Compile Include="DqPageSize.cs" />
+    <Compile Include="DqParagraph.cs" />
+    <Compile Include="DqReferenceParser.cs" />
+    <Compile Include="DqSection.cs" />
+    <Compile Include="DqSourceReferenceParser.cs" />
+    <Compile Include="Styling\DqStyle.cs" />
+    <Compile Include="DqTableReferenceParser.cs" />
+    <Compile Include="NumberingService.cs" />
+    <Compile Include="PageAnalyzer.cs" />
+    <Compile Include="ParagraphAnalyzer.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="DocumentFormat.OpenXml, Version=2.8.1.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
       <HintPath>..\packages\DocumentFormat.OpenXml.2.8.1\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
     </Reference>
@@ -51,7 +92,6 @@
     <Reference Include="System.Console, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Console.4.3.0\lib\net46\System.Console.dll</HintPath>
     </Reference>
-    <Reference Include="System.Core" />
     <Reference Include="System.Diagnostics.DiagnosticSource, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Diagnostics.DiagnosticSource.4.3.0\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
     </Reference>
@@ -87,8 +127,9 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.Security.Cryptography.Algorithms, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.Algorithms.4.3.0\lib\net461\System.Security.Cryptography.Algorithms.dll</HintPath>
+    <Reference Include="System.Security.Cryptography.Algorithms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.Algorithms.4.3.0\lib\net46\System.Security.Cryptography.Algorithms.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System.Security.Cryptography.Encoding, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Security.Cryptography.Encoding.4.3.0\lib\net46\System.Security.Cryptography.Encoding.dll</HintPath>
@@ -96,60 +137,19 @@
     <Reference Include="System.Security.Cryptography.Primitives, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Security.Cryptography.Primitives.4.3.0\lib\net46\System.Security.Cryptography.Primitives.dll</HintPath>
     </Reference>
-    <Reference Include="System.Security.Cryptography.X509Certificates, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.X509Certificates.4.3.0\lib\net461\System.Security.Cryptography.X509Certificates.dll</HintPath>
+    <Reference Include="System.Security.Cryptography.X509Certificates, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.X509Certificates.4.3.0\lib\net46\System.Security.Cryptography.X509Certificates.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System.ValueTuple, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.ValueTuple.4.3.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
     </Reference>
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Xml.ReaderWriter, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Xml.ReaderWriter.4.3.0\lib\net46\System.Xml.ReaderWriter.dll</HintPath>
     </Reference>
     <Reference Include="WindowsBase" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="BookParser.cs" />
-    <Compile Include="HeaderHierarchyService.cs" />
-    <Compile Include="Class1.cs" />
-    <Compile Include="DqFontScheme.cs" />
-    <Compile Include="DqPart.cs" />
-    <Compile Include="DqPartParser.cs" />
-    <Compile Include="DqStructure.cs" />
-    <Compile Include="HeaderParser.cs" />
-    <Compile Include="Styling\DqNumberingTable.cs" />
-    <Compile Include="Styling\DqStyleParser.cs" />
-    <Compile Include="Styling\DqStyleTable.cs" />
-    <Compile Include="Styling\DqNumbering.cs" />
-    <Compile Include="Styling\DqNumberingLevel.cs" />
-    <Compile Include="Styling\DqStyleBasis.cs" />
-    <Compile Include="Styling\DqAligment.cs" />
-    <Compile Include="Styling\DqNumberingParser.cs" />
-    <Compile Include="Person.cs" />
-    <Compile Include="SourceAnalyzer.cs" />
-    <Compile Include="StringExtensions.cs" />
-    <Compile Include="DocxParser.cs" />
-    <Compile Include="DqDocument.cs" />
-    <Compile Include="DqFigureReferenceParser.cs" />
-    <Compile Include="DqFooter.cs" />
-    <Compile Include="DqFooters.cs" />
-    <Compile Include="DqNumber.cs" />
-    <Compile Include="DqPageMargin.cs" />
-    <Compile Include="DqPageSize.cs" />
-    <Compile Include="DqParagraph.cs" />
-    <Compile Include="DqReferenceParser.cs" />
-    <Compile Include="DqSection.cs" />
-    <Compile Include="DqSourceReferenceParser.cs" />
-    <Compile Include="Styling\DqStyle.cs" />
-    <Compile Include="DqTableReferenceParser.cs" />
-    <Compile Include="NumberingService.cs" />
-    <Compile Include="PageAnalyzer.cs" />
-    <Compile Include="ParagraphAnalyzer.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

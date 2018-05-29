@@ -19,11 +19,99 @@ namespace DQ.Core
 
     public class SourceAnalyzer
     {
-        public void Analyze(Node root)
+        public void Analyze(DqDocument dqDocument)
         {
-            var sourcesPart = root.Children.SingleOrDefault(p => p.Type == MainPartType.Bibliography);
-            if (sourcesPart == null) return;
-            foreach (var content in sourcesPart.ContentParagraphs)
+            var bibliography = dqDocument.Structure.Bibliography;
+            if (bibliography == null) return;
+
+            var sources = bibliography.Paragraphs.Skip(1).Where(p => p.Meta.SourceDeclarations.Any());
+            foreach (var dqParagraph in sources)
+            {
+                Analyze(dqParagraph);
+            }
+        }
+
+        private void Analyze(DqParagraph dqParagraph)
+        {
+            var text = dqParagraph.GetPureText().Trim();
+
+            var isSite = text.Contains("http:") || text.Contains("https:");
+            
+            var parts = Regex.Split(text, @"(\[Электронный ресурс\]|\[Electronic resource\])", RegexOptions.IgnoreCase);
+            if (parts.Length == 1)
+            {
+                if (isSite)
+                {
+                    dqParagraph.Meta.Errors.Add(new DqError($"Электронный ресурс имеет неверный формат."));
+                }
+                return;
+            }
+            else
+            {
+                if (!isSite)
+                {
+                    dqParagraph.Meta.Errors.Add(new DqError($"Не найдена ссылка на ресурс!"));
+                    return;
+                }
+            }
+
+            var separator = parts[1];
+            if (separator != "[Электронный ресурс]" && separator != "[Electronic resource]")
+            {
+                dqParagraph.Meta.Errors.Add(new DqError($"Часть «{separator}» имеет неверный регистр."));
+            }
+
+            var hasCyrillic = Regex.IsMatch(parts[0], @"\p{IsCyrillic}");
+            var hasLatin = Regex.IsMatch(parts[0], @"[a-zA-Z]");
+            var isRu = hasCyrillic;
+            var isEn = hasLatin && !hasCyrillic;
+
+            if (isRu)
+            {
+                if (string.Equals(separator, "[Electronic resource]", StringComparison.OrdinalIgnoreCase))
+                {
+                    dqParagraph.Meta.Errors.Add(new DqWarning($"Название электронного ресурса содержит кириллицу. Возможно, следует использовать «[Электронный ресурс]» вместо «{separator}»."));
+                }
+            }
+
+            if (isEn)
+            {
+                if (string.Equals(separator, "[Электронный ресурс]", StringComparison.OrdinalIgnoreCase))
+                {
+                    dqParagraph.Meta.Errors.Add(new DqWarning($"Название электронного ресурса содержит только латиницу. Возможно, следует использовать «[Electronic resource]» вместо «{separator}»."));
+                }
+            }
+
+            var yearMatch = Regex.Match(parts[2], @"\d{4}\s*(г\.?|год)");
+            if (yearMatch.Success)
+            {
+                dqParagraph.Meta.Errors.Add(new DqError($"При указании года слово «{yearMatch.Groups[1].Value}» не пишется."));
+            }
+
+            var modeOfAccess = Regex.Match(parts[2], @"(Режим доступа\s*:\s*|Mode of access\s*:\s*)");
+            if (!modeOfAccess.Success)
+            {
+                dqParagraph.Meta.Errors.Add(new DqError($"Режим доступа не найден."));
+                return;
+            }
+
+            var dateOfAccess = Regex.Match(parts[2], @"(Дата доступа\s*:\s*|Date of access\s*:\s*)(\d{2}\.\d{2}\.\d{4})");
+            if (!dateOfAccess.Success)
+            {
+                dqParagraph.Meta.Errors.Add(new DqError($"Дата доступа не найдена."));
+                return;
+            }
+
+            if (!modeOfAccess.Groups[1].Value.Contains(" : ") || !dateOfAccess.Groups[1].Value.Contains(" : "))
+            {
+                dqParagraph.Meta.Errors.Add(new DqError($"Перед и после двоеточия-разделителя ставится пробел («Режим доступа : », «Дата доступа : »)"));
+            }
+        }
+
+        public void Analyze2(DqDocument dqDocument)
+        {
+            if (dqDocument.Structure.Bibliography == null) return;
+            foreach (var content in dqDocument.Structure.Bibliography.Paragraphs)
             {
                 var sources = content.Meta.SourceDeclarations.OfType<DqSource>().ToList();
                 if (sources.Count == 0) continue;

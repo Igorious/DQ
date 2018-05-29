@@ -62,7 +62,7 @@ namespace DQ.Core
 
         public bool IsHeader { get; set; }
 
-        public Node Node { get; set; }
+        public DqPart Part { get; set; }
 
         public List<DqStructureElement> Structure { get; } = new List<DqStructureElement>();
 

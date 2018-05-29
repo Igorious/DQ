@@ -27,7 +27,7 @@ namespace DQ.Core.Styling
         private DqNumberingLevel ConvertLevel(Level level) => 
             new DqNumberingLevel(level.LevelText.Val)
             {
-                Indent = level.GetFirstChild<ParagraphProperties>()?.Indentation?.Left?.Value is string leftIndent
+                Indent = level.GetFirstChild<PreviousParagraphProperties>()?.Indentation?.Left?.Value is string leftIndent
                     ? Convertion.TwipToCm(int.Parse(leftIndent))
                     : (decimal?) null
             };

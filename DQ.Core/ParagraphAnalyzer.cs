@@ -1,107 +1,182 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
+using System.Text.RegularExpressions;
 using DQ.Core.Styling;
+using DQ.Properties;
 
 namespace DQ.Core
 {
     public class ParagraphAnalyzer
     {
-        public void Analyze(DqDocument document, Node root)
+        public void Analyze(DqDocument document)
         {
-            var startIndex = root.Children.First().HeaderParagraph.Index;
-            document.Paragraphs.Skip(startIndex).ToList().ForEach(paragraph => Analyze(paragraph, document, root));
+            var parts = new[]
+            {
+                document.Structure.Toc,
+                document.Structure.Introduction,
+                document.Structure.MainPart,
+                document.Structure.Conclusion,
+                document.Structure.Bibliography,
+                document.Structure.Appendixes,
+            }.Concat(document.Structure.Abstracts).Where(p => p != null);
+
+            foreach (var dqPart in parts)
+            {
+                if (dqPart is DqMainPart dqMainPart)
+                {
+                    AnalyzeMainPart(dqMainPart, document);
+                }
+                else
+                {
+                    AnalyzeNonMainPart(dqPart, document);
+                }
+                FindSpaces(dqPart);
+            }
         }
 
-        private void Analyze(DqParagraph paragraph, DqDocument document, Node root)
+        private void FindSpaces(DqPart dqPart)
         {
-            if (string.IsNullOrWhiteSpace(paragraph.Text.Replace("{IMG}", "").Replace("{TBL}", "").Replace("{PageBreak}", "")))
+            foreach (var dqParagraph in dqPart.Paragraphs)
+            {
+                if (dqParagraph.Text.StartsWith("  "))
+                {
+                    dqParagraph.Meta.Errors.Add(new DqWarning("Абзац начинается с нескольких пробелов."));
+                }
+            }
+        }
+
+        private void AnalyzeNonMainPart(DqPart dqPart, DqDocument dqDocument)
+        {
+            var centeredParts = new[] { PartType.Bibliography, PartType.Abstract, PartType.Introduction, PartType.Conclusion, PartType.Toc };
+            if (!centeredParts.Contains(dqPart.Type)) return;
+
+            var dqParagraph = dqPart.Start;
+            if (!dqParagraph.Text.StartsWith("{PageBreak}") && !dqDocument.Paragraphs[dqParagraph.Index - 1].Text.EndsWith("{PageBreak}"))
+            {
+                dqParagraph.Meta.Errors.Add(new DqError("Перед разделом отсутсвует разрыв страницы."));
+            }
+
+            if (dqParagraph.Style.Aligment != DqAligment.Center)
+            {
+                dqParagraph.Meta.Errors.Add(new DqAlignmentError($"Заголовки разделов должны быть выровнены по центру."));
+            }
+            else if (dqParagraph.Style.Indent != 0)
+            {
+                dqParagraph.Meta.Errors.Add(new DqAlignmentError($"При выравнивании по центру должен отсутвовать абзацный отступ."));
+            }
+
+            if (string.Equals(dqParagraph.GetPureText(), "список использованной литературы", StringComparison.OrdinalIgnoreCase))
+            {
+                dqParagraph.Meta.Errors.Add(new DqError($"Нормативное название части — «Список использованных источников»."));
+            }
+        }
+
+        private void AnalyzeMainPart(DqMainPart dqMainPart, DqDocument dqDocument)
+        {
+            foreach (var dqParagraph in dqMainPart.Paragraphs)
+            {
+                AnalyzeMainPartParagraph(dqParagraph, dqDocument);
+            }
+
+            foreach (var chapter in dqMainPart.Children)
+            {
+                var dqParagraph = chapter.Start;
+                if (!dqParagraph.Text.StartsWith("{PageBreak}") && !dqDocument.Paragraphs[dqParagraph.Index - 1].Text.EndsWith("{PageBreak}"))
+                {
+                    dqParagraph.Meta.Errors.Add(new DqError("Перед разделом отсутсвует разрыв страницы."));
+                }
+            }
+        }
+
+        private void AnalyzeMainPartParagraph(DqParagraph dqParagraph, DqDocument dqDocument)
+        {
+            if (string.IsNullOrWhiteSpace(dqParagraph.Text.Replace("{IMG}", "").Replace("{TBL}", "").Replace("{PageBreak}", "")))
             {
                 return;
             }
-
-            if (paragraph.Meta.Node?.Level == 0 && root.Children.FirstOrDefault(c => c.Type == MainPartType.Bibliography)?.ContentParagraphs.Skip(1).Contains(paragraph) == false)
+       
+            if (dqParagraph.Meta.FigureDeclarations.Any())
             {
-                if (!paragraph.Text.StartsWith("{PageBreak}") && !document.Paragraphs[paragraph.Index].Text.EndsWith("{PageBreak}"))
+                if (dqParagraph.Style.FontSize > Settings.Default.ExpectedFontSize)
                 {
-                    paragraph.Meta.Errors.Add(new DqError("Перед разделом отсутсвует разрыв страницы."));
+                    dqParagraph.Meta.Errors.Add(new DqFontSizeError($"Неверный размер шрифта ({dqParagraph.Style.FontSize} пт). Подписи риcунков должны использовать шрифт не больше основного ({Settings.Default.ExpectedFontSize} пт)."));
                 }
             }
-
-            var tocNode = root.Children.FirstOrDefault(c => c.Type == MainPartType.Toc);
-            if (tocNode != null && tocNode.ContentParagraphs.Contains(paragraph)) return;
-
-            if (paragraph.Meta.FigureDeclarations.Any())
+            else if (dqParagraph.Meta.TableDeclarations.Any())
             {
-                if (paragraph.Style.FontSize > 14)
+                if (dqParagraph.Style.FontSize > Settings.Default.ExpectedFontSize)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Неверный размер шрифта ({paragraph.Style.FontSize} пт). Подписи риунков должны использовать шрифт не больше основного (14 пт)."));
+                    dqParagraph.Meta.Errors.Add(new DqFontSizeError($"Неверный размер шрифта ({dqParagraph.Style.FontSize} пт). Заголовки таблиц должны использовать шрифт не больше основного ({Settings.Default.ExpectedFontSize} пт)."));
                 }
             }
-            else if (paragraph.Meta.TableDeclarations.Any())
+            else if (dqParagraph.Meta.IsHeader)
             {
-                if (paragraph.Style.FontSize > 14)
+                if (dqParagraph.Style.FontSize < Settings.Default.ExpectedFontSize)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Неверный размер шрифта ({paragraph.Style.FontSize} пт). Заголовки таблиц должны использовать шрифт не больше основного (14 пт)."));
+                    dqParagraph.Meta.Errors.Add(new DqFontSizeError($"Неверный размер шрифта ({dqParagraph.Style.FontSize} пт). Заголовки должны использовать шрифт не меньше основного ({Settings.Default.ExpectedFontSize} пт)."));
                 }
-            }
-            else if (paragraph.Meta.IsHeader)
-            {
-                if (paragraph.Style.FontSize < 14)
-                {
-                    paragraph.Meta.Errors.Add(new DqError($"Неверный размер шрифта ({paragraph.Style.FontSize} пт). Заголовки должны использовать шрифт не меньше основного (14 пт)."));
-                }
-            }
 
-            var expectedFontName = "Times New Roman";
-            if (paragraph.Style.FontName != expectedFontName)
-            {
-                paragraph.Meta.Errors.Add(new DqError($"Неверный шрифт ({paragraph.Style.FontName}). Иcпользуйте {expectedFontName}."));
+                if (dqParagraph.GetPureText().Trim().EndsWith("."))
+                {
+                    dqParagraph.Meta.Errors.Add(new DqError($"В конце заголовков точка не ставится."));
+                }
+
+                var number = Regex.Match(dqParagraph.GetPureText().TrimStart(), @"^((?:\d+\.)*\d+?)");
+                if (number.Success && number.Value.EndsWith("."))
+                {
+                    dqParagraph.Meta.Errors.Add(new DqError($"В конце номера (под)раздела точка не ставится."));
+                }
             }
 
-            var centeredParts = new MainPartType?[] { MainPartType.Bibliography, MainPartType.Abstract, MainPartType.Introduction, MainPartType.Conclusion, MainPartType.Toc };
-            if (paragraph.Meta.IsHeader && centeredParts.Contains(paragraph.Meta.Node?.Type))
+            if (dqParagraph.Style.FontName != Settings.Default.ExpectedFontName)
             {
-                if (paragraph.Style.Aligment != DqAligment.Center)
+                dqParagraph.Meta.Errors.Add(new DqFontError($"Неверный шрифт ({dqParagraph.Style.FontName}). Иcпользуйте {Settings.Default.ExpectedFontName}."));
+            }
+
+            if (dqParagraph.Meta.IsHeader)
+            {
+                if (dqParagraph.Style.Aligment == DqAligment.Center || dqParagraph.Style.Aligment == DqAligment.Right)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Заголовок раздела должен быть выровнен по центру."));
+                    dqParagraph.Meta.Errors.Add(new DqAlignmentError($"Заголовки главной части должны быть выровнены по левому краю."));
                 }
-                else if (paragraph.Style.Indent != 0)
+                else if (dqParagraph.Style.Indent == 0)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"При выравнивании по центру должен отсутвовать абзацный отступ."));
+                    dqParagraph.Meta.Errors.Add(new DqAlignmentError($"Отсутвует абзацный отступ."));
                 }
             }
-            else if (paragraph.Meta.FigureDeclarations.Any())
+            else if (dqParagraph.Meta.FigureDeclarations.Any())
             {
-                if (paragraph.Style.Aligment != DqAligment.Center)
+                if (dqParagraph.Style.Aligment != DqAligment.Center)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Подпись рисунка должна быть выровнена по центру."));
+                    dqParagraph.Meta.Errors.Add(new DqAlignmentError($"Подпись рисунка должна быть выровнена по центру."));
                 }
-                else if (paragraph.Style.Indent != 0)
+                else if (dqParagraph.Style.Indent != 0)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"При выравнивании по центру должен отсутвовать абзацный отступ."));
+                    dqParagraph.Meta.Errors.Add(new DqAlignmentError($"При выравнивании по центру должен отсутвовать абзацный отступ."));
                 }
             }
-            else if (paragraph.Meta.TableDeclarations.Any())
+            else if (dqParagraph.Meta.TableDeclarations.Any())
             {
-                if (paragraph.Style.Aligment != DqAligment.Left)
+                if (dqParagraph.Style.Aligment == DqAligment.Center || dqParagraph.Style.Aligment == DqAligment.Right)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Заголовок таблицы должен быть выровнен по левому краю."));
+                    dqParagraph.Meta.Errors.Add(new DqAlignmentError($"Заголовок таблицы должен быть выровнен по левому краю."));
                 }
-                else if (paragraph.Style.Indent != 0)
+                else if (dqParagraph.Style.Indent != 0)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Заголовок таблицы помещают без абзацного отступа."));
+                    dqParagraph.Meta.Errors.Add(new DqAlignmentError($"Заголовок таблицы помещают без абзацного отступа."));
                 }
             }
-            else if (!paragraph.Meta.IsHeader)
+            else if (!dqParagraph.Meta.IsHeader)
             {   
-                if (paragraph.Style.Indent == 0)
+                if (dqParagraph.Style.Indent == 0)
                 {
-                    paragraph.Meta.Errors.Add(new DqError($"Отсутствует абзацный отступ."));
+                    dqParagraph.Meta.Errors.Add(new DqAlignmentError($"Отсутствует абзацный отступ."));
                 }
             }
 
-            if (paragraph.Style.SpacingBetweenLines != 1.5m && !paragraph.Meta.IsHeader)
+            if (dqParagraph.Style.SpacingBetweenLines != Settings.Default.ExpectedSpacingBetweenLines && !dqParagraph.Meta.IsHeader && !dqParagraph.Meta.FigureDeclarations.Any() && !dqParagraph.Meta.TableDeclarations.Any())
             {
-                paragraph.Meta.Errors.Add(new DqError($"Неверный междустрочный интервал ({paragraph.Style.SpacingBetweenLines}). Ожидается полуторный интервал."));
+                dqParagraph.Meta.Errors.Add(new DqError($"Неверный междустрочный интервал ({dqParagraph.Style.SpacingBetweenLines}). Ожидается {Settings.Default.ExpectedSpacingBetweenLines}-ый интервал."));
             }
         }
     }

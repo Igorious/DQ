@@ -48,20 +48,57 @@ namespace DQ.Core.Styling
             if (pPr.GetFirstChild<NumberingProperties>() != null)
             {
                 var id = pPr.GetFirstChild<NumberingProperties>().NumberingId;
-                localStyle.Current.Numbering = dqNumberingTable[id.Val];
+                var numbering = dqNumberingTable[id.Val];
+                localStyle.Current.Numbering = numbering;
+
+                var level = pPr.GetFirstChild<NumberingProperties>().NumberingLevelReference;
+                if (level != null && level.Val < numbering.Levels.Count)
+                {
+                    localStyle.Current.Indent = numbering.Levels[level.Val].Indent ?? localStyle.Indent;
+                }               
             }
 
-            var rPr = pPr.ParagraphMarkRunProperties;
-            if (rPr == null) return localStyle;
+            var rPr = (OpenXmlElement) pPr.ParagraphMarkRunProperties;
 
-            if (rPr.GetFirstChild<RunFonts>() != null)
+            if (rPr != null)
             {
-                localStyle.Current.FontName = GetFontName(rPr.GetFirstChild<RunFonts>(), fontScheme);
+                if (rPr.GetFirstChild<RunFonts>() != null)
+                {
+                    localStyle.Current.FontName = GetFontName(rPr.GetFirstChild<RunFonts>(), fontScheme);
+                }
+
+                if (rPr.GetFirstChild<FontSize>() != null)
+                {
+                    localStyle.Current.FontSize = ConvertFontSize(rPr.GetFirstChild<FontSize>());
+                }
+
+                if (rPr.GetFirstChild<Bold>() != null)
+                {
+                    localStyle.Current.IsBold = ConvertBold(rPr.GetFirstChild<Bold>());
+                }
             }
-
-            if (rPr.GetFirstChild<FontSize>() != null)
+     
+            var runs = paragraph.Descendants<Run>().ToList();
+            if (runs.Count == 1)
             {
-                localStyle.Current.FontSize = ConvertFontSize(rPr.GetFirstChild<FontSize>());
+                rPr = runs.Single().RunProperties;
+                if (rPr != null)
+                {
+                    if (rPr.GetFirstChild<RunFonts>() != null)
+                    {
+                        localStyle.Current.FontName = GetFontName(rPr.GetFirstChild<RunFonts>(), fontScheme);
+                    }
+
+                    if (rPr.GetFirstChild<FontSize>() != null)
+                    {
+                        localStyle.Current.FontSize = ConvertFontSize(rPr.GetFirstChild<FontSize>());
+                    }
+
+                    if (rPr.GetFirstChild<Bold>() != null)
+                    {
+                        localStyle.Current.IsBold = ConvertBold(rPr.GetFirstChild<Bold>());
+                    }
+                }
             }
 
             return localStyle;
@@ -88,6 +125,8 @@ namespace DQ.Core.Styling
         private IReadOnlyCollection<DqStyle> GetStyles(Styles wStyles, DqNumberingTable dqNumberingsTable, DqFontScheme dqFontScheme) => 
             wStyles.Descendants<Style>().Select(wStyle => ConvertStyle(wStyle, dqNumberingsTable, dqFontScheme)).ToList();
 
+        private bool ConvertBold(Bold bold) => bold.Val?.Value ?? true;
+
         private DqStyle ConvertStyle(Style style, DqNumberingTable dqNumberingsTable, DqFontScheme fontScheme) =>
             new DqStyle
             {
@@ -97,7 +136,7 @@ namespace DQ.Core.Styling
                 Current = new DqStyleBasis
                 {
                     IsBold = style.StyleRunProperties?.Bold is Bold bold
-                        ? bold.Val?.Value ?? true
+                        ? ConvertBold(bold)
                         : (bool?)null,
                     FontSize = ConvertFontSize(style.StyleRunProperties?.FontSize),
                     FontName = GetFontName(style, fontScheme),
@@ -174,12 +213,12 @@ namespace DQ.Core.Styling
         {
             var asciiTheme = runFonts?.ComplexScriptTheme?.Value;
 
-            if (asciiTheme == ThemeFontValues.MajorAscii || asciiTheme == ThemeFontValues.MajorHighAnsi)
+            if (asciiTheme == ThemeFontValues.MajorAscii || asciiTheme == ThemeFontValues.MajorHighAnsi || asciiTheme == ThemeFontValues.MajorBidi)
             {
                 return fontScheme.MajorFont.LatinFont.Typeface;
             }
 
-            if (asciiTheme == ThemeFontValues.MinorAscii || asciiTheme == ThemeFontValues.MinorHighAnsi)
+            if (asciiTheme == ThemeFontValues.MinorAscii || asciiTheme == ThemeFontValues.MinorHighAnsi || asciiTheme == ThemeFontValues.MinorBidi)
             {
                 return fontScheme.MinorFont.LatinFont.Typeface;
             }
